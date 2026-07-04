@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+:root {
+  --background: #09090b;
+  --foreground: #ededed;
+
+  --primary: rgb(59, 130, 246);
+  --primary-soft: rgba(59, 130, 246, 0.16);
+
+  --surface: rgba(255, 255, 255, 0.03);
+  --surface-hover: rgba(255, 255, 255, 0.05);
+
+  --border: rgba(255, 255, 255, 0.1);
+  --muted: rgb(161, 161, 170);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ------------------------------------------------ */
+/* Base */
+/* ------------------------------------------------ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-snap-type: y mandatory;
+  overflow-y: auto;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+
+  background: var(--background);
+  color: var(--foreground);
+
+  font-family: var(--font-geist-sans);
+}
+
+/* ------------------------------------------------ */
+/* Global Background Glow */
+/* ------------------------------------------------ */
+
+body::after {
+  content: "";
+
+  position: fixed;
+  inset: 0;
+
+  pointer-events: none;
+  z-index: -2;
+
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      var(--primary-soft),
+      transparent 45%
+    );
+}
+
+/* ------------------------------------------------ */
+/* Grid */
+/* ------------------------------------------------ */
+
+body::before {
+  content: "";
+
+  position: fixed;
+  inset: 0;
+
+  pointer-events: none;
+  z-index: -1;
+
+  background-image:
+    linear-gradient(
+      rgba(255,255,255,.03) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255,255,255,.03) 1px,
+      transparent 1px
+    );
+
+  background-size: 40px 40px;
+
+  opacity: .6;
+
+  mask-image:
+    radial-gradient(circle, black 35%, transparent 100%);
+  -webkit-mask-image:
+    radial-gradient(circle, black 35%, transparent 100%);
+}
+
+/* ------------------------------------------------ */
+/* Sections */
+/* ------------------------------------------------ */
+
+section,
+footer {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+
+  min-height: 100vh;
+
+  position: relative;
+}
+
+/* ------------------------------------------------ */
+/* Selection */
+/* ------------------------------------------------ */
+
+::selection {
+  background: rgba(59,130,246,.3);
+  color: white;
+}
+
+/* ------------------------------------------------ */
+/* Scrollbar */
+/* ------------------------------------------------ */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.15);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,.3);
+}
