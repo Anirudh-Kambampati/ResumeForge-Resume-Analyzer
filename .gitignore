@@ -1,0 +1,91 @@
+# ==================================================
+# ResumeForge
+# ==================================================
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+**/.env
+**/.env.*
+!**/.env.example
+
+# Node / Next.js
+node_modules/
+**/node_modules/
+
+.next/
+**/.next/
+
+out/
+**/out/
+
+dist/
+**/dist/
+
+build/
+**/build/
+
+.turbo/
+**/.turbo/
+
+.vercel/
+
+# Python
+__pycache__/
+**/__pycache__/
+
+*.py[cod]
+*$py.class
+
+venv/
+.venv/
+env/
+ENV/
+
+**/venv/
+**/.venv/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Coverage
+coverage/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# TypeScript
+*.tsbuildinfo
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Generated resume PDFs
+*.pdf
+
+# Cache
+.cache/

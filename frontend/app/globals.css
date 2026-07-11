@@ -146,3 +146,91 @@ footer {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255,255,255,.3);
 }
+
+/* ------------------------------------------------ */
+/* Builder and Analyzer Snapping & Height Reset */
+/* ------------------------------------------------ */
+
+html:has(#builder-workspace),
+html:has(#analyzer-workspace),
+body:has(#builder-workspace),
+body:has(#analyzer-workspace) {
+  scroll-snap-type: none !important;
+  overflow: auto !important;
+  scroll-behavior: auto !important;
+}
+
+#builder-workspace section,
+#analyzer-workspace section,
+#resume-page section {
+  min-height: unset !important;
+  scroll-snap-align: unset !important;
+  scroll-snap-stop: unset !important;
+}
+
+/* ------------------------------------------------ */
+/* Print Styles for PDF Export */
+/* ------------------------------------------------ */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  html, body {
+    background: white !important;
+    color: black !important;
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  
+  body::before,
+  body::after {
+    display: none !important;
+  }
+  
+/* Hide only explicitly marked print UI */
+.print\:hidden {
+  display: none !important;
+}
+  /* Make containers fit print page */
+  main,
+  .grid,
+  .overflow-auto,
+  .overflow-y-auto {
+    overflow: visible !important;
+    display: block !important;
+    height: auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: white !important;
+  }
+
+  /* Resume Page specific layout */
+  #resume-page {
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: var(--resume-page-padding, 20mm) !important;
+    width: 210mm !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 297mm !important;
+    aspect-ratio: unset !important;
+    background: white !important;
+    color: black !important;
+  }
+  
+  /* Remove highlight rings on print */
+  .ring-2,
+  .ring-blue-500\/40 {
+    box-shadow: none !important;
+    outline: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
