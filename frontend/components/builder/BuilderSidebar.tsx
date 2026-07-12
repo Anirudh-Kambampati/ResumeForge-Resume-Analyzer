@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   User,
   FileText,
@@ -82,8 +83,13 @@ export default function BuilderSidebar({
 
       <div className="border-b border-white/10 px-6 py-7">
 
-        <h1 className="text-2xl font-bold tracking-tight">
-          ResumeForge
+        <h1>
+          <Link
+            href="/"
+            className="cursor-pointer text-2xl font-bold tracking-tight transition-colors hover:text-blue-400"
+          >
+            ResumeForge
+          </Link>
         </h1>
 
         <p className="mt-2 text-sm text-zinc-500">

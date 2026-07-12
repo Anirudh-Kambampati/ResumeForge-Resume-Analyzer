@@ -1,287 +1,146 @@
+"""Deterministic, section-aware ATS-oriented resume scoring."""
 import re
-from typing import Dict, Any, List
+from collections import Counter
+from typing import Any, Dict, List
 
-def _score_contact_completeness(text: str) -> Dict[str, Any]:
-    # Look for email, phone, location, link
-    email_match = bool(re.search(r"[\w\.-]+@[\w\.-]+\.\w+", text))
-    phone_match = bool(re.search(r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", text))
-    # Simple proxies for location and links
-    link_match = bool(re.search(r"(linkedin\.com|github\.com|\.dev|\.io)", text, re.IGNORECASE))
-    
-    score = 0
-    if len(text.strip()) > 0:
-        score += 1 # Name / header exists simply by having text, roughly
-    if email_match: score += 1
-    if phone_match: score += 1
-    if link_match: score += 1
-    # For location, we'll give 1 point if we found other things and string is long enough
-    if len(text) > 100: score += 1
-    
-    return {
-        "score": min(score, 5),
-        "max_score": 5,
-        "evidence": {
-            "email_found": email_match,
-            "phone_found": phone_match,
-            "link_found": link_match
-        }
-    }
+SECTION_ALIASES = {
+    "summary": {"professional summary", "summary", "profile"},
+    "experience": {"experience", "work experience", "professional experience", "employment"},
+    "projects": {"projects", "personal projects", "academic projects"},
+    "education": {"education", "academic background"},
+    "skills": {"skills", "technical skills", "technical expertise", "core competencies"},
+    "achievements": {"achievements", "accomplishments"},
+    "certifications": {"certifications", "certificates"},
+    "languages": {"languages"},
+}
+SKILL_ALIASES = {
+    "javascript": ("javascript", "js"), "typescript": ("typescript", "ts"),
+    "react": ("react", "react.js"), "nextjs": ("nextjs", "next.js", "next js"),
+    "nodejs": ("nodejs", "node.js", "node js"), "fastapi": ("fastapi", "fast api"),
+    "postgresql": ("postgresql", "postgres"), "mongodb": ("mongodb", "mongo"),
+    "machine learning": ("machine learning", "ml"),
+    "large language models": ("large language models", "llm", "llms"),
+    "retrieval augmented generation": ("retrieval augmented generation", "rag"),
+    "scikit-learn": ("scikit-learn", "sklearn"),
+}
+BULLET_RE = re.compile(r"^(?:[•●▪◦*\-–—]|â€¢|â—|â–ª|â—¦)\s*(.*)$")
+DATE_RE = re.compile(r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[\s,']+\d{2,4}\b|\b\d{4}-\d{1,2}\b|\b\d{1,2}/\d{4}\b|\b(?:19|20)\d{2}\b", re.I)
 
-def _score_standard_structure(text: str) -> Dict[str, Any]:
-    text_lower = text.lower()
-    headings = [
-        "summary", "professional summary", "profile", 
-        "experience", "work experience", "professional experience", 
-        "education", "skills", "technical skills", 
-        "projects", "achievements", "certifications", "languages"
-    ]
-    
-    found = []
-    for h in headings:
-        # Check if heading exists as a standalone-ish word
-        if re.search(rf"\b{h}\b", text_lower):
-            found.append(h)
-            
-    score = min(len(found) * 2, 15)
-    return {
-        "score": score,
-        "max_score": 15,
-        "evidence": {
-            "found_headings": found
-        }
-    }
+def normalize_skill(value: str) -> str:
+    v = re.sub(r"\s+", " ", value.lower().strip())
+    for canonical, aliases in SKILL_ALIASES.items():
+        if v in aliases:
+            return canonical
+    return v
 
-def _score_section_completeness(text: str) -> Dict[str, Any]:
-    text_lower = text.lower()
-    has_profile = True
-    has_summary = bool(re.search(r"\b(summary|profile)\b", text_lower))
-    has_education = bool(re.search(r"\beducation\b", text_lower))
-    has_skills = bool(re.search(r"\bskills\b", text_lower))
-    has_experience = bool(re.search(r"\b(experience|work)\b", text_lower))
-    has_projects = bool(re.search(r"\bprojects\b", text_lower))
-    
-    score = 0
-    if has_profile: score += 2
-    if has_summary: score += 2
-    if has_education: score += 2
-    if has_skills: score += 2
-    if has_experience or has_projects: score += 2
-    
-    return {
-        "score": score,
-        "max_score": 10,
-        "evidence": {
-            "has_summary": has_summary,
-            "has_education": has_education,
-            "has_skills": has_skills,
-            "has_experience_or_projects": has_experience or has_projects
-        }
-    }
+def _heading_key(line: str) -> str | None:
+    clean = re.sub(r"[^a-z ]", "", line.lower()).strip()
+    for key, aliases in SECTION_ALIASES.items():
+        if clean in aliases:
+            return key
+    return None
 
-def _score_skills_presentation(text: str) -> Dict[str, Any]:
-    # Extract lines near 'skills'
-    has_skills = bool(re.search(r"\bskills\b", text.lower()))
-    score = 0
-    if has_skills:
-        score += 5
-        # Proxy for categorization or many skills
-        if text.lower().count(',') > 10:
-            score += 5
-    return {
-        "score": score,
-        "max_score": 10,
-        "evidence": {
-            "has_skills_section": has_skills
-        }
-    }
+def parse_resume(text: str) -> Dict[str, Any]:
+    """Split extracted text into a typed evidence object before scoring it."""
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in text.replace("\r", "").split("\n")]
+    headings = [(i, _heading_key(line)) for i, line in enumerate(lines) if _heading_key(line)]
+    sections: Dict[str, List[str]] = {}
+    order: List[str] = []
+    for pos, (start, name) in enumerate(headings):
+        end = headings[pos + 1][0] if pos + 1 < len(headings) else len(lines)
+        if name not in sections:
+            sections[name] = [line for line in lines[start + 1:end] if line]
+            order.append(name)
+        else:
+            sections[name].extend(line for line in lines[start + 1:end] if line)
+    first_heading = headings[0][0] if headings else len(lines)
+    header = [line for line in lines[:first_heading] if line]
+    candidates = [line for line in lines if line and len(line) < 45 and not _heading_key(line)]
+    unrecognized = [line for line in candidates if line.isupper() and len(line.split()) <= 5]
+    return {"header_region": "\n".join(header), "sections": sections, "section_order": order,
+            "unrecognized_heading_candidates": unrecognized, "lines": lines,
+            "extraction_metadata": {"extracted_character_count": len(text), "line_count": len(lines)}}
 
-def _extract_bullets(text: str) -> List[str]:
-    # Match bullet symbols, including common PDF conversion artifacts
-    # \u2022 = •, \u25CF = ●, \u25AA = ▪, \u25E6 = ◦, \u2013 = –, \u2014 = —
-    bullet_regex = r"^(\*|-|–|—|•|●|▪|◦|\u2022|\u25CF|\u25AA|\u25E6)\s*"
-    
-    lines = text.split('\n')
-    bullets = []
-    current_bullet = []
-    
+def extract_bullets(sections: Dict[str, List[str]]) -> Dict[str, List[str]]:
+    """Centralized bullet collector for Experience and Projects only."""
+    output: Dict[str, List[str]] = {"experience": [], "projects": []}
+    for name in output:
+        current: List[str] = []
+        bullet_active = False
+        for line in sections.get(name, []):
+            match = BULLET_RE.match(line)
+            if match:
+                if current:
+                    output[name].append(" ".join(current).strip())
+                current = [match.group(1)] if match.group(1) else []
+                bullet_active = True
+            elif bullet_active:
+                # A new entry/date line ends a wrapped bullet; ordinary lines wrap it.
+                if DATE_RE.search(line) and len(line.split()) <= 8:
+                    if current:
+                        output[name].append(" ".join(current).strip())
+                    current = []; bullet_active = False
+                else:
+                    current.append(line)
+        if current:
+            output[name].append(" ".join(current).strip())
+        output[name] = [b for b in output[name] if len(b) > 2]
+    return output
+
+def _result(score: int, max_score: int, evidence: Dict[str, Any], reason: str) -> Dict[str, Any]:
+    return {"score": max(0, min(max_score, int(score))), "max_score": max_score, "evidence": evidence, "reason": reason}
+
+def _machine_readability(text: str) -> Dict[str, Any]:
+    meaningful = sum(c.isalnum() or c.isspace() or c in ".,;:()/-+@" for c in text)
+    replacement = text.count("\ufffd"); controls = sum(ord(c) < 32 and c not in "\n\t\r" for c in text)
+    words = re.findall(r"[A-Za-z]{2,}", text)
+    ratio = meaningful / max(1, len(text)); corruption = (replacement + controls) / max(1, len(text))
+    if len(text.strip()) < 40: score = 0
+    else: score = round(20 * min(1, len(text) / 800) * min(1, ratio / .92) * max(0, 1 - corruption * 12) * (1 if len(words) >= 10 else .5))
+    ev = {"extraction_succeeded": bool(text.strip()), "extracted_character_count": len(text), "meaningful_character_count": meaningful, "replacement_character_count": replacement, "replacement_character_ratio": round(replacement/max(1,len(text)),4), "control_character_ratio": round(controls/max(1,len(text)),4), "recognizable_word_count": len(words)}
+    return _result(score, 20, ev, "Extracted text is sufficiently clean and word-like for machine parsing." if score >= 15 else "Extracted text has limited or corrupted machine-readable content.")
+
+def _contact(parsed: Dict[str, Any]) -> Dict[str, Any]:
+    header = parsed["header_region"]; lower = header.lower()
+    email = re.search(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", header)
+    phone = re.search(r"(?:\+?\d[\d ()-]{7,}\d)", header)
+    profile_urls = re.findall(r"(?:https?://)?(?:www\.)?(?:linkedin\.com|github\.com|[\w-]+\.(?:dev|io|me|com))(?:/[^\s|]*)?", header, re.I)
+    name = next((line for line in header.split("\n") if re.match(r"^[A-Za-z][A-Za-z .'-]{2,40}$", line) and not _heading_key(line)), "")
+    location = bool(re.search(r"\b[A-Za-z .'-]+,\s*[A-Z]{2}\b|\b(?:India|USA|United States|Canada|UK|United Kingdom)\b", header, re.I))
+    found = sum(bool(x) for x in (name, email, phone, location, profile_urls))
+    ev={"name_found": bool(name), "email": email.group(0) if email else None, "phone": phone.group(0) if phone else None, "location_found": location, "professional_profile_urls": profile_urls}
+    return _result(round(found/5*10),10,ev,f"{found} of 5 standard contact signals were found in the extracted header region.")
+
+def _date_consistency(text: str) -> Dict[str, Any]:
+    dates=DATE_RE.findall(text); styles=[]
+    for d in dates:
+        styles.append("year_month" if re.match(r"\d{4}-",d) else "numeric_month_year" if "/" in d else "month_name" if re.search(r"[A-Za-z]",d) else "year")
+    distinct=sorted(set(styles)); inconsistent=max(0,len(distinct)-1)
+    score=10 if len(dates)<=1 else round(10*(1-inconsistent/max(1,len(distinct))))
+    return _result(score,10,{"detected_dates": dates,"normalized_date_styles":styles,"dominant_style":Counter(styles).most_common(1)[0][0] if styles else None,"inconsistent_date_count":inconsistent},"Date formatting is internally consistent." if inconsistent==0 else "Multiple repeated date formats were detected.")
+
+def _skills(parsed: Dict[str,Any]) -> Dict[str,Any]:
+    lines=parsed["sections"].get("skills",[]); categories=[]; raw=[]
     for line in lines:
-        stripped_line = line.strip()
-        if not stripped_line:
-            continue
-            
-        # Ignore obvious headings, contact info, skill categories
-        if len(stripped_line) < 5 and not re.match(bullet_regex, stripped_line):
-            continue
-            
-        if re.search(r"^[A-Z][A-Z\s]+$", stripped_line) and len(stripped_line) < 30:
-            # Looks like a heading, break current bullet
-            if current_bullet:
-                bullets.append(" ".join(current_bullet))
-                current_bullet = []
-            continue
-            
-        is_new_bullet = False
-        if re.match(bullet_regex, stripped_line):
-            is_new_bullet = True
-            
-        if is_new_bullet:
-            if current_bullet:
-                bullets.append(" ".join(current_bullet))
-            # Start new bullet, stripping the actual bullet character
-            content = re.sub(bullet_regex, "", stripped_line).strip()
-            current_bullet = [content] if content else []
-        elif current_bullet:
-            # Continuation of previous bullet
-            current_bullet.append(stripped_line)
-            
-    if current_bullet:
-        bullets.append(" ".join(current_bullet))
-        
-    return bullets
-
-def _score_bullet_quality(bullets: List[str]) -> Dict[str, Any]:
-    if not bullets:
-        return {"score": 0, "max_score": 15, "evidence": {"total_bullets": 0}}
-        
-    short_bullets = sum(1 for b in bullets if len(b.split()) < 5)
-    long_bullets = sum(1 for b in bullets if len(b.split()) > 30)
-    weak_bullets = sum(1 for b in bullets if b.lower().startswith(("worked on", "responsible for", "helped with")))
-    
-    deduction = (short_bullets * 1) + (long_bullets * 1) + (weak_bullets * 2)
-    score = max(0, 15 - deduction)
-    
-    return {
-        "score": score,
-        "max_score": 15,
-        "evidence": {
-            "total_bullets": len(bullets),
-            "short_bullets": short_bullets,
-            "long_bullets": long_bullets,
-            "weak_bullets": weak_bullets
-        }
-    }
-
-def _score_action_verbs(bullets: List[str]) -> Dict[str, Any]:
-    if not bullets:
-        return {"score": 0, "max_score": 10, "evidence": {"total_bullets": 0}}
-        
-    verbs = {
-        "built", "developed", "implemented", "designed", "created", 
-        "engineered", "optimized", "automated", "integrated", "deployed", 
-        "analyzed", "improved", "reduced", "increased", "managed", 
-        "led", "collaborated", "configured", "migrated", "tested", 
-        "trained", "evaluated", "processed", "architected", "delivered"
-    }
-    
-    action_bullets = 0
-    for b in bullets:
-        words = b.lower().split()
-        if words and words[0] in verbs:
-            action_bullets += 1
-            
-    ratio = action_bullets / len(bullets)
-    score = min(int(ratio * 15), 10)
-    
-    return {
-        "score": score,
-        "max_score": 10,
-        "evidence": {
-            "action_verb_bullets": action_bullets,
-            "eligible_bullets": len(bullets)
-        }
-    }
-
-def _score_quantified_impact(bullets: List[str]) -> Dict[str, Any]:
-    if not bullets:
-        return {"score": 0, "max_score": 15, "evidence": {"total_bullets": 0}}
-        
-    quantified = 0
-    for b in bullets:
-        if re.search(r"(\d+%|\$\d+|\b\d+\s*(users|requests|records|datasets|hours|days|latency)\b)", b, re.IGNORECASE):
-            quantified += 1
-            
-    ratio = quantified / len(bullets)
-    score = min(int(ratio * 20), 15)
-    
-    return {
-        "score": score,
-        "max_score": 15,
-        "evidence": {
-            "total_bullets": len(bullets),
-            "quantified_bullets": quantified,
-            "quantified_ratio": round(ratio, 2)
-        }
-    }
-
-def _score_content_specificity(text: str) -> Dict[str, Any]:
-    weak_phrases = ["worked on", "responsible for", "helped with", "participated in", "various tasks", "multiple projects", "hard working", "team player"]
-    text_lower = text.lower()
-    
-    weak_count = 0
-    for wp in weak_phrases:
-        weak_count += text_lower.count(wp)
-        
-    score = max(0, 10 - weak_count)
-    return {
-        "score": score,
-        "max_score": 10,
-        "evidence": {
-            "weak_phrases_count": weak_count
-        }
-    }
-
-def _score_ats_readability(text: str) -> Dict[str, Any]:
-    char_count = len(text)
-    score = 0
-    if char_count > 500:
-        score += 5
-    if char_count > 1000:
-        score += 5
-        
-    # Check for unreadable characters
-    if text.count('\ufffd') > 5:
-        score -= 5
-        
-    score = max(0, score)
-    return {
-        "score": score,
-        "max_score": 10,
-        "evidence": {
-            "extracted_character_count": char_count,
-            "extraction_success": char_count > 0
-        }
-    }
+        bits=re.split(r"[:,|]",line, maxsplit=1)
+        if len(bits)==2: categories.append(bits[0].strip()); raw.extend(re.split(r"[,;/]",bits[1]))
+        else: raw.extend(re.split(r"[,;/]",line))
+    normalized=[normalize_skill(x.strip()) for x in raw if len(x.strip())>1]
+    duplicates=len(normalized)-len(set(normalized)); ratio=duplicates/max(1,len(normalized))
+    score=0 if not lines else round(10*min(1,len(normalized)/3)*max(0,1-ratio))
+    return _result(score,10,{"skills_section_found":bool(lines),"skill_categories":categories,"normalized_skills":sorted(set(normalized)),"duplicate_ratio":round(ratio,3),"parse_failures":0 if normalized else len(lines)},"Skills text is grouped and tokenized from a recognized Skills section." if normalized else "No reliably tokenizable skills were found in a recognized Skills section.")
 
 def score_resume(text: str) -> Dict[str, Any]:
-    bullets = _extract_bullets(text)
-    
-    contact = _score_contact_completeness(text)
-    structure = _score_standard_structure(text)
-    section = _score_section_completeness(text)
-    skills = _score_skills_presentation(text)
-    bullet_qual = _score_bullet_quality(bullets)
-    action_verbs = _score_action_verbs(bullets)
-    quantified = _score_quantified_impact(bullets)
-    specificity = _score_content_specificity(text)
-    ats = _score_ats_readability(text)
-    
-    total_score = (
-        contact["score"] + structure["score"] + section["score"] + 
-        skills["score"] + bullet_qual["score"] + action_verbs["score"] + 
-        quantified["score"] + specificity["score"] + ats["score"]
-    )
-    
-    return {
-        "total_score": total_score,
-        "breakdown": {
-            "contact_completeness": contact,
-            "standard_structure": structure,
-            "section_completeness": section,
-            "skills_presentation": skills,
-            "bullet_quality": bullet_qual,
-            "action_verbs": action_verbs,
-            "quantified_impact": quantified,
-            "content_specificity": specificity,
-            "ats_readability": ats
-        }
-    }
+    parsed=parse_resume(text); sections=parsed["sections"]; bullets=extract_bullets(sections); skills=_skills(parsed)
+    populated=[k for k,v in sections.items() if any(v)]; major=[k for k in populated if k in {"summary","experience","projects","education","skills"}]
+    outside=max(0,len([x for x in parsed["lines"] if x])-sum(len(v) for v in sections.values())-len(parsed["header_region"].split("\n")))
+    structure=_result(round(15*min(1,len(major)/4)*max(.5,1-outside/max(1,len(parsed['lines'])))),15,{"recognized_sections":parsed["section_order"],"populated_sections":populated,"unrecognized_heading_candidates":parsed["unrecognized_heading_candidates"],"content_outside_sections":outside},"Recognizable sections have clear parsed boundaries.")
+    required={"summary","education","skills"}; has_path=bool({"experience","projects"}&set(populated)); recognized=len(required&set(populated))+int(has_path)
+    section_score=_result(round(recognized/4*10),10,{"recognized_sections":parsed["section_order"],"populated_sections":populated,"empty_recognized_sections":[k for k,v in sections.items() if not v],"unrecognized_heading_candidates":parsed["unrecognized_heading_candidates"]},"Populated standard sections were recognized; Projects may satisfy the experience pathway.")
+    all_bullets=bullets["experience"]+bullets["projects"]; malformed=sum(1 for b in all_bullets if len(b.split())<2); dup=len(all_bullets)-len(set(x.lower() for x in all_bullets))
+    content=_result(10 if all_bullets else (6 if sections.get("experience") or sections.get("projects") else 4),10,{"total_bullets":len(all_bullets),"experience_bullets":bullets["experience"],"project_bullets":bullets["projects"],"fallback_detected_statements":0,"malformed_fragments":malformed,"duplicate_structural_items":dup},"Experience and project statements are segmented from their section boundaries." if all_bullets else "Experience/project content has limited explicit bullet segmentation.")
+    tokens=[normalize_skill(x) for x in re.findall(r"[A-Za-z][A-Za-z+.#-]{2,}",text)]; counts=Counter(tokens); suspicious=sorted(k for k,v in counts.items() if v>=12 and v/max(1,len(tokens))>.05); keyword=_result(5-len(suspicious)*2,5,{"repeated_terms":dict(sorted((k,v) for k,v in counts.items() if v>=4)),"suspicious_terms":suspicious,"duplicate_skill_ratio":skills["evidence"]["duplicate_ratio"],"keyword_density_evidence":{"token_count":len(tokens)}},"No disproportionate repeated technical terms were detected." if not suspicious else "Repeated terms are disproportionately frequent for the extracted length.")
+    layout_signals={"fragmented_short_line_ratio":round(sum(1 for x in parsed['lines'] if 0<len(x)<2)/max(1,len(parsed['lines'])),3),"repeated_isolated_glyphs":sum(1 for x in parsed['lines'] if len(x)==1 and not x.isalnum()),"severe_column_interleaving_detected":False,"excessive_symbol_noise":sum(1 for x in text if not (x.isalnum() or x.isspace() or x in '.,;:()/-+@&'))>len(text)*.08}
+    layout=_result(10-(4 if layout_signals["excessive_symbol_noise"] else 0)-(3 if layout_signals["repeated_isolated_glyphs"]>8 else 0),10,layout_signals,"No severe text-layout extraction risk signals were detected.")
+    breakdown={"machine_readability":_machine_readability(text),"standard_ats_structure":structure,"contact_parseability":_contact(parsed),"section_recognition":section_score,"date_consistency":_date_consistency(text),"layout_safety_signals":layout,"skills_extractability":skills,"content_structure":content,"keyword_hygiene":keyword}
+    return {"total_score":sum(x["score"] for x in breakdown.values()),"breakdown":breakdown,"parsed_evidence":parsed}

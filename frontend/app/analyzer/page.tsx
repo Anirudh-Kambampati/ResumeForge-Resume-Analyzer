@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   Info
 } from "lucide-react";
+import { normalizeError } from "@/lib/errorHelper";
 
 interface Suggestion {
   title: string;
@@ -20,28 +21,30 @@ interface Suggestion {
   priority: "high" | "medium" | "low";
 }
 
-interface SectionScores {
-  skills: number;
-  experience: number;
-  projects: number;
-  education: number;
+interface AnalysisScores {
+  deterministic_rule_score: number;
+  ai_review_score: number;
+  job_match_score: number | null;
 }
 
-interface ImprovedBullet {
-  original: string;
-  improved: string;
+interface BreakdownItem {
+  score: number;
+  max_score: number;
+  evidence: any;
 }
 
 interface AnalysisData {
-  mode: "general" | "job_match";
-  ats_score: number;
-  summary: string;
+  analysis_mode: "general" | "job_match";
+  scores: AnalysisScores;
+  score_gap_insight: string;
+  rule_breakdown: Record<string, BreakdownItem>;
+  job_match_breakdown?: Record<string, BreakdownItem>;
   matched_keywords: string[];
   missing_keywords: string[];
+  summary: string;
   strengths: string[];
   weaknesses: string[];
   suggestions: Suggestion[];
-  section_scores: SectionScores;
   improved_bullets: ImprovedBullet[];
   interview_focus: string[];
 }
@@ -125,7 +128,7 @@ export default function AnalyzerPage() {
         if (errorText) {
           try {
             const errorData: unknown = JSON.parse(errorText);
-            errorMessage = getApiErrorMessage(errorData);
+            errorMessage = normalizeError(errorData);
           } catch {
             errorMessage = errorText;
           }
@@ -144,6 +147,8 @@ export default function AnalyzerPage() {
         } else {
           errMsg = e.message;
         }
+      } else {
+        errMsg = normalizeError(e);
       }
       setError(errMsg);
     } finally {
@@ -353,13 +358,13 @@ export default function AnalyzerPage() {
                 />
                 <Step
                   num={2}
-                  title="Input target job description"
+                  title="Input target job description (optional)"
                   desc="Paste text listing tech stack requirements, engineering frameworks, and keywords."
                 />
                 <Step
                   num={3}
-                  title="Run matching engine"
-                  desc="The OpenRouter-powered engine conducts semantic checks, computes scores, and outputs feedback."
+                  title="Run deterministic and AI-powered resume scoring, with job-description matching when a JD is provided."
+                  desc="The AI-powered engine conducts semantic checks, computes scores, and outputs feedback."
                 />
               </div>
 
@@ -382,36 +387,50 @@ export default function AnalyzerPage() {
           <div className="space-y-8 animate-fade-in">
             
             {/* Top Score Banner */}
-            <div className="grid md:grid-cols-[200px_1fr] items-center gap-6 bg-[#0C0C0E] border border-white/10 rounded-2xl p-6">
+            <div className="grid md:grid-cols-[1fr_2fr] items-center gap-6 bg-[#0C0C0E] border border-white/10 rounded-2xl p-6">
               
-              {/* Circular Score display */}
-              <div className="flex flex-col items-center justify-center">
-                <div className="relative flex items-center justify-center w-36 h-36 rounded-full border-4 border-zinc-800">
-                  {/* Score colored rim */}
-                  <div
-                    className={`absolute inset-0 rounded-full border-4 transition-all duration-500 ${
-                      result.ats_score >= 80
-                        ? "border-green-500"
-                        : result.ats_score >= 60
-                        ? "border-yellow-500"
-                        : "border-red-500"
-                    }`}
-                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%)" }}
-                  />
-                  <div className="text-center z-10">
-                    <span className="text-4xl font-extrabold text-white">{result.ats_score}</span>
-                    <span className="text-xs text-zinc-500 block">/ 100</span>
+              {/* Score displays */}
+              <div className="flex flex-col gap-4 items-center justify-center border-r border-white/10 pr-6">
+                
+                <div className="text-center">
+                  <div className="text-4xl font-extrabold text-white">
+                    {result.scores.deterministic_rule_score} <span className="text-xl text-zinc-500">/ 100</span>
                   </div>
+                  <span className="mt-1 text-xs uppercase tracking-wider font-semibold text-blue-500">
+                    Deterministic Rule Score
+                  </span>
                 </div>
-                <span className="mt-2 text-xs uppercase tracking-wider font-semibold text-zinc-500">
-                  {result.mode === "job_match" ? "Job Match Score" : "ATS Resume Score"}
-                </span>
+                
+                <div className="w-full h-px bg-white/10 my-2"></div>
+                
+                <div className="text-center">
+                  <div className="text-3xl font-extrabold text-white">
+                    {result.scores.ai_review_score} <span className="text-lg text-zinc-500">/ 100</span>
+                  </div>
+                  <span className="mt-1 text-[10px] uppercase tracking-wider font-semibold text-purple-400">
+                    AI Review Score
+                  </span>
+                </div>
+
+                {result.analysis_mode === "job_match" && result.scores.job_match_score !== null && (
+                  <>
+                    <div className="w-full h-px bg-white/10 my-2"></div>
+                    <div className="text-center">
+                      <div className="text-3xl font-extrabold text-green-400">
+                        {result.scores.job_match_score} <span className="text-lg text-green-400/50">/ 100</span>
+                      </div>
+                      <span className="mt-1 text-[10px] uppercase tracking-wider font-semibold text-green-500">
+                        Job Match Score
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Summary details */}
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex justify-between items-start">
-                  <h3 className="text-xl font-bold text-white">ATS Compliance Assessment</h3>
+                  <h3 className="text-xl font-bold text-white">Resume Analysis</h3>
                   <button
                     onClick={handleReset}
                     className="
@@ -436,13 +455,31 @@ export default function AnalyzerPage() {
                   </button>
                 </div>
                 <p className="text-sm text-zinc-400 leading-relaxed font-sans">{result.summary}</p>
+                <div className="grid gap-2 text-xs text-zinc-400 md:grid-cols-3">
+                  <p><span className="text-blue-400">Deterministic Rule Score:</span> Calculated using fixed ATS-oriented structure, parseability, and machine-readability checks.</p>
+                  <p><span className="text-purple-400">AI Review Score:</span> AI evaluation of clarity, impact, positioning, and overall resume content strength.</p>
+                  {result.analysis_mode === "job_match" && <p><span className="text-green-400">Job Match Score:</span> Deterministic alignment between resume evidence and the supplied job description.</p>}
+                </div>
+                
+                <div className="bg-blue-500/5 border border-blue-500/20 p-4 rounded-xl">
+                  <h4 className="text-xs uppercase tracking-wider text-blue-400 font-bold mb-2">
+                    Score Gap Insight
+                  </h4>
+                  <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                    {result.score_gap_insight}
+                  </p>
+                </div>
                 
                 {/* Score indicators */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
-                  <SectionScore label="Skills" score={result.section_scores.skills} />
-                  <SectionScore label="Experience" score={result.section_scores.experience} />
-                  <SectionScore label="Projects" score={result.section_scores.projects} />
-                  <SectionScore label="Education" score={result.section_scores.education} />
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
+                  {Object.entries(result.rule_breakdown).map(([key, breakdown]) => (
+                    <SectionScore 
+                      key={key} 
+                      label={RULE_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} 
+                      score={breakdown.score} 
+                      maxScore={breakdown.max_score} 
+                    />
+                  ))}
                 </div>
               </div>
             </div>
@@ -613,83 +650,40 @@ function Step({ num, title, desc }: { num: number; title: string; desc: string }
   );
 }
 
-function SectionScore({ label, score }: { label: string; score: number }) {
+function SectionScore({ label, score, maxScore }: { label: string; score: number; maxScore: number }) {
+  const percentage = (score / maxScore) * 100;
   return (
     <div className="bg-[#141416] p-3 rounded-xl border border-white/5 flex flex-col gap-1.5">
       <div className="flex justify-between items-center text-xs font-semibold">
         <span className="text-zinc-500">{label}</span>
-        <span className="text-zinc-300">{score}%</span>
+        <span className="text-zinc-300">{score}/{maxScore}</span>
       </div>
       <div className="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full ${
-            score >= 80 ? "bg-green-500" : score >= 60 ? "bg-yellow-500" : "bg-red-500"
+            percentage >= 80 ? "bg-green-500" : percentage >= 60 ? "bg-yellow-500" : "bg-red-500"
           }`}
-          style={{ width: `${score}%` }}
+          style={{ width: `${percentage}%` }}
         />
       </div>
     </div>
   );
 }
 
-function getApiErrorMessage(value: unknown): string {
-  if (!value) {
-    return "";
-  }
-
-  if (typeof value === "string") {
-    return value.trim();
-  }
-
-  if (typeof value === "object" && value !== null) {
-    const obj = value as Record<string, unknown>;
-
-    if (typeof obj.message === "string") {
-      return obj.message.trim();
-    }
-
-    if ("detail" in obj) {
-      const detail = obj.detail;
-      if (typeof detail === "string") {
-        return detail.trim();
-      }
-      if (typeof detail === "object" && detail !== null) {
-        if (Array.isArray(detail)) {
-          const firstErr = detail[0];
-          if (firstErr && typeof firstErr === "object" && firstErr !== null) {
-            const errObj = firstErr as Record<string, unknown>;
-            if (typeof errObj.msg === "string") {
-              const loc = Array.isArray(errObj.loc) ? errObj.loc.join(".") : "";
-              return loc ? `${loc}: ${errObj.msg}` : errObj.msg;
-            }
-          }
-        }
-        return getApiErrorMessage(detail);
-      }
-    }
-
-    if ("error" in obj) {
-      const err = obj.error;
-      if (typeof err === "string") {
-        return err.trim();
-      }
-      if (typeof err === "object" && err !== null) {
-        return getApiErrorMessage(err);
-      }
-    }
-
-    for (const key of ["msg", "description", "reason", "detail", "error_message"]) {
-      if (typeof obj[key] === "string") {
-        return (obj[key] as string).trim();
-      }
-    }
-
-    try {
-      return JSON.stringify(value);
-    } catch {
-      // ignore
-    }
-  }
-
-  return String(value);
+interface ImprovedBullet {
+  original: string;
+  improved: string;
 }
+
+const RULE_LABELS: Record<string, string> = {
+  machine_readability: "Machine Readability",
+  standard_ats_structure: "Standard ATS Structure",
+  contact_parseability: "Contact Parseability",
+  section_recognition: "Section Recognition",
+  date_consistency: "Date Consistency",
+  layout_safety_signals: "Layout Safety Signals",
+  skills_extractability: "Skills Extractability",
+  content_structure: "Content Structure",
+  keyword_hygiene: "Keyword Hygiene",
+};
+

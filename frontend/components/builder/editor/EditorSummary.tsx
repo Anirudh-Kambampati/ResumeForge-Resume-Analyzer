@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Resume } from "@/types/resume";
 import { Sparkles, Check, X, AlertCircle } from "lucide-react";
+import { normalizeError } from "@/lib/errorHelper";
 
 type Props = {
   resume: Resume;
@@ -53,15 +54,19 @@ export default function EditorSummary({ resume, setResume }: Props) {
       });
 
       if (!res.ok) {
-        const errText = await res.text();
+        let errText = await res.text();
+        try {
+          const errJson = JSON.parse(errText);
+          errText = normalizeError(errJson);
+        } catch {}
         throw new Error(errText || "Failed to improve text");
       }
 
       const data = await res.json();
       setSuggestion(data.improved_text);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setError(e.message || "Could not reach the backend. Make sure the FastAPI server is running.");
+      setError(normalizeError(e));
     } finally {
       setLoading(false);
     }

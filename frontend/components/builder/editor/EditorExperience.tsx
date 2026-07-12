@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Resume, Experience } from "@/types/resume";
 import { Plus, Trash, Sparkles, ChevronDown, ChevronUp, Check, X, AlertCircle } from "lucide-react";
+import { normalizeError } from "@/lib/errorHelper";
 
 type Props = {
   resume: Resume;
@@ -115,15 +116,19 @@ export default function EditorExperience({ resume, setResume }: Props) {
       });
 
       if (!res.ok) {
-        const errText = await res.text();
+        let errText = await res.text();
+        try {
+          const errJson = JSON.parse(errText);
+          errText = normalizeError(errJson);
+        } catch {}
         throw new Error(errText || "Failed to improve bullet");
       }
 
       const data = await res.json();
       setAiSuggestion({ itemId, bulletIdx, text: data.improved_text });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setAiError(e.message || "Failed to connect to AI backend.");
+      setAiError(normalizeError(e));
     } finally {
       setImprovingIdx(null);
     }

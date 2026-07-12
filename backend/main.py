@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 import pypdf
 import httpx
 from dotenv import load_dotenv
-from services.scoring_service import score_resume
+from services.scoring_service import score_resume, normalize_skill, SKILL_ALIASES
 from services.jd_service import calculate_job_match
 
 logging.basicConfig(level=logging.INFO)
@@ -47,6 +47,13 @@ class ImproveRequest(BaseModel):
     type: str = Field(pattern="^(summary|bullet|project_bullet|experience_bullet|achievement)$")
     text: str
     context: Optional[str] = None
+
+class JDRequirements(BaseModel):
+    target_title: str = ""
+    required_skills: List[str] = Field(default_factory=list)
+    preferred_skills: List[str] = Field(default_factory=list)
+    domain_keywords: List[str] = Field(default_factory=list)
+    responsibilities: List[str] = Field(default_factory=list)
 
 def clean_and_parse_json(text_content: str) -> dict:
     cleaned = text_content.strip()
@@ -90,6 +97,18 @@ def validate_numeric_claims(original_text: str, improved_text: str, context: Opt
     # Check if improved_claims introduces anything not in source_claims
     for claim in improved_claims:
         if claim not in source_claims:
+            return False
+    return True
+
+def validate_generated_claims(original_text: str, improved_text: str, context: Optional[str] = None) -> bool:
+    """Reject measurable claims and named technologies absent from supplied evidence."""
+    source = (original_text + " " + (context or "")).lower()
+    if not validate_numeric_claims(source, improved_text):
+        return False
+    for canonical, aliases in SKILL_ALIASES.items():
+        generated_mentions = any(re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", improved_text, re.I) for alias in aliases)
+        source_mentions = any(re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", source, re.I) for alias in aliases)
+        if generated_mentions and not source_mentions:
             return False
     return True
 
@@ -206,7 +225,7 @@ async def analyze_resume(
             "You must extract structured requirements from the job description and evaluate the resume text. "
             "You must provide an AI Review Score (0-100) reflecting clarity, impact, positioning, and overall resume strength. "
             "Explain any meaningful disagreement between the Deterministic Rule Score and your AI Review Score in a 'score_gap_insight'. "
-            "DO NOT recalculate the deterministic score. DO NOT fabricate candidate claims. "
+            "The deterministic score measures ATS-oriented structure and parseability, not content quality. DO NOT recalculate it. DO NOT fabricate candidate claims. "
             "Output MUST be valid JSON."
         )
 
@@ -228,6 +247,7 @@ Return a valid JSON object:
   "ai_review_score": 75,
   "score_gap_insight": "Insight explaining the difference between the deterministic {deterministic_rule_score} and your AI review score.",
   "jd_requirements": {{
+    "target_title": "AI Engineer",
     "required_skills": ["python", "fastapi"],
     "preferred_skills": ["docker"],
     "domain_keywords": ["backend", "api"],
@@ -250,7 +270,7 @@ Return a valid JSON object:
             "You are an expert AI resume reviewer. "
             "You must provide an AI Review Score (0-100) reflecting clarity, impact, positioning, and overall resume strength. "
             "Explain any meaningful disagreement between the Deterministic Rule Score and your AI Review Score in a 'score_gap_insight'. "
-            "DO NOT recalculate the deterministic score. DO NOT fabricate candidate claims. "
+            "The deterministic score measures ATS-oriented structure and parseability, not content quality. DO NOT recalculate it. DO NOT fabricate candidate claims. "
             "Output MUST be valid JSON."
         )
 
@@ -309,7 +329,7 @@ Correct this to output ONLY valid JSON.
                 detail=f"The AI model failed to output compliant structured analysis. Error: {str(retry_e)}"
             )
 
-    ai_review_score = parsed_json.get("ai_review_score", 70)
+    ai_review_score = max(0, min(100, int(parsed_json.get("ai_review_score", 70))))
     
     job_match_score = None
     job_match_breakdown = None
@@ -318,13 +338,28 @@ Correct this to output ONLY valid JSON.
     interview_focus = []
     
     if is_job_match:
-        jd_requirements = parsed_json.get("jd_requirements", {})
-        match_result = calculate_job_match(extracted_text, jd_requirements, deterministic_rule_score)
+        try:
+            jd_requirements = JDRequirements.model_validate(parsed_json.get("jd_requirements", {})).model_dump()
+        except Exception:
+            jd_requirements = JDRequirements().model_dump()
+        match_result = calculate_job_match(extracted_text, jd_requirements)
         job_match_score = match_result["total_score"]
         job_match_breakdown = match_result["breakdown"]
         matched_keywords = match_result["all_matched_keywords"]
         missing_keywords = match_result["all_missing_keywords"]
         interview_focus = parsed_json.get("interview_focus", [])
+
+    # Analyzer suggestions are generated content too. Do not surface a rewritten
+    # bullet unless its original is present in the uploaded evidence and it passes
+    # the same deterministic claim gate used by the editor improvement endpoint.
+    safe_improved_bullets = []
+    for item in parsed_json.get("improved_bullets", []):
+        if not isinstance(item, dict):
+            continue
+        original = str(item.get("original", ""))
+        improved = str(item.get("improved", ""))
+        if original and original.lower() in extracted_text.lower() and validate_generated_claims(extracted_text, improved):
+            safe_improved_bullets.append({"original": original, "improved": improved})
         
     return {
         "analysis_mode": "job_match" if is_job_match else "general",
@@ -342,7 +377,7 @@ Correct this to output ONLY valid JSON.
         "strengths": parsed_json.get("strengths", []),
         "weaknesses": parsed_json.get("weaknesses", []),
         "suggestions": parsed_json.get("suggestions", []),
-        "improved_bullets": parsed_json.get("improved_bullets", []),
+        "improved_bullets": safe_improved_bullets,
         "interview_focus": interview_focus
     }
 
@@ -404,7 +439,7 @@ async def improve_text(req: ImproveRequest):
     improved_text = parsed_json.get("improved_text", "")
     
     # Validation step
-    if not validate_numeric_claims(req.text, improved_text, req.context):
+    if not validate_generated_claims(req.text, improved_text, req.context):
         # Repair attempt
         repair_system_prompt = system_prompt + "\n\nCRITICAL: You just hallucinated a numeric claim (e.g., a percentage, dollar amount, or count) that was NOT present in the source text. You must remove it and stick ONLY to the facts provided."
         improved_raw_2 = await call_openrouter(api_key, model, repair_system_prompt, user_prompt)
@@ -422,10 +457,9 @@ async def improve_text(req: ImproveRequest):
         improved_text_2 = parsed_json.get("improved_text", "")
         
         # Second validation
-        if not validate_numeric_claims(req.text, improved_text_2, req.context):
-            raise HTTPException(status_code=400, detail="AI attempted to fabricate unsupported metrics. Improvement rejected.")
+        if not validate_generated_claims(req.text, improved_text_2, req.context):
+            raise HTTPException(status_code=400, detail="AI attempted to introduce unsupported claims. Improvement rejected.")
         
         return parsed_json
 
     return parsed_json
-

@@ -48,7 +48,7 @@ export default function Footer() {
           </a>
 
           <a
-            href="https://linkedin.com/in/YOUR-LINK"
+            href="https://linkedin.com/in/anirudh-kambampati"
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/40 hover:bg-white/[0.05]"
@@ -77,7 +77,7 @@ export default function Footer() {
             <p>© 2026 ResumeForge</p>
 
             <p className="mt-2">
-              Designed & Developed by{" "}
+              Designed & Developed with ❤️ by{" "}
               <span className="text-white">
                 Anirudh Kambampati
               </span>

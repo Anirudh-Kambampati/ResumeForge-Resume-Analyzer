@@ -1,6 +1,10 @@
 "use client";
 
-import { Download, RotateCcw, CloudCheck, CloudLightning } from "lucide-react";
+import { Download, RotateCcw, CloudCheck, CloudLightning, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { pdf } from "@react-pdf/renderer";
+import { ResumePDFDocument } from "./preview/ResumePDFDocument";
+import { useResumeStore } from "@/store/resumeStore";
 
 type Props = {
   resetResume: () => void;
@@ -13,8 +17,28 @@ export default function BuilderTopbar({
   saveStatus,
   fullName,
 }: Props) {
-  const handleDownload = () => {
-    window.open("/print", "_blank");
+  const resume = useResumeStore((state) => state.resume);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    try {
+      setIsDownloading(true);
+      const blob = await pdf(<ResumePDFDocument resume={resume} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = (fullName || "Resume").replace(/[^a-z0-9]/gi, '_');
+      a.download = `${safeName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("PDF generation failed", error);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return (
@@ -75,6 +99,7 @@ export default function BuilderTopbar({
 
         <button
           onClick={handleDownload}
+          disabled={isDownloading}
           className="
             flex
             items-center
@@ -90,10 +115,12 @@ export default function BuilderTopbar({
             hover:bg-blue-500
             shadow-lg
             shadow-blue-600/10
+            disabled:opacity-50
+            disabled:cursor-not-allowed
           "
         >
-          <Download size={16} />
-          Download PDF
+          {isDownloading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
+          {isDownloading ? "Generating..." : "Download PDF"}
         </button>
 
       </div>

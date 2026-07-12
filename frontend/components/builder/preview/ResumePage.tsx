@@ -2,6 +2,7 @@
 
 import { Resume } from "@/types/resume";
 import { BuilderSection } from "@/store/resumeStore";
+import { normalizeEmail, normalizeUrl } from "@/lib/contactLinks";
 
 type Props = {
   resume: Resume;
@@ -199,16 +200,16 @@ const densityStyles = {
       paddingBottom: "12px",
     },
     name: {
-      fontSize: "21pt",
+      fontSize: "24pt",
       lineHeight: "1.2",
     },
     title: {
-      fontSize: "10pt",
+      fontSize: "10.5pt",
       marginTop: "3px",
     },
     contactRow: {
       marginTop: "8px",
-      fontSize: "8.5pt",
+      fontSize: "8.75pt",
       gap: "10px",
     },
     sectionGap: {
@@ -289,16 +290,16 @@ const densityStyles = {
       paddingBottom: "8px",
     },
     name: {
-      fontSize: "18pt",
+      fontSize: "24pt",
       lineHeight: "1.1",
     },
     title: {
-      fontSize: "9.5pt",
+      fontSize: "10.5pt",
       marginTop: "2px",
     },
     contactRow: {
       marginTop: "6px",
-      fontSize: "8pt",
+      fontSize: "8.75pt",
       gap: "8px",
     },
     sectionGap: {
@@ -379,16 +380,16 @@ const densityStyles = {
       paddingBottom: "6px",
     },
     name: {
-      fontSize: "16pt",
+      fontSize: "24pt",
       lineHeight: "1.1",
     },
     title: {
-      fontSize: "9pt",
+      fontSize: "10.5pt",
       marginTop: "2px",
     },
     contactRow: {
       marginTop: "4px",
-      fontSize: "7.8pt",
+      fontSize: "8.75pt",
       gap: "6px",
     },
     sectionGap: {
@@ -478,13 +479,15 @@ export default function ResumePage({
   const profile = resume.profile || {};
   const links = profile.links || [];
   
-  // Format top contact line: Email | Phone | Location | Links
   const contactInfo = [
-    profile.email,
-    profile.phone,
-    profile.location,
-    ...links.map((link) => link.url ? `${link.label}: ${link.url}` : link.label)
-  ].filter(Boolean);
+    profile.email && { label: profile.email, href: normalizeEmail(profile.email) },
+    profile.phone && { label: profile.phone },
+    profile.location && { label: profile.location },
+    ...links.map((link) => {
+      const href = normalizeUrl(link.url);
+      return href ? { label: link.label || link.url, href } : null;
+    }),
+  ].filter(Boolean) as { label: string; href?: string }[];
 
   return (
     <article
@@ -536,7 +539,7 @@ export default function ResumePage({
               {contactInfo.map((info, idx) => (
                 <span key={idx} className="flex items-center">
                   {idx > 0 && <span className="mr-3 text-neutral-400 select-none">|</span>}
-                  {info}
+                  {info.href ? <a href={info.href}>{info.label}</a> : info.label}
                 </span>
               ))}
             </div>
