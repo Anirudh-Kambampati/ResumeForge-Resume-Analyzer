@@ -145,27 +145,6 @@ export default function BuilderSidebar({
 
       </nav>
 
-      {/* Footer */}
-
-      <div className="border-t border-white/10 p-5">
-
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-4">
-
-          <p className="text-xs uppercase tracking-wider text-blue-300">
-            Resume Status
-          </p>
-
-          <h3 className="mt-2 text-lg font-semibold">
-            Editing
-          </h3>
-
-          <p className="mt-1 text-sm text-zinc-400">
-            Changes appear instantly in the preview.
-          </p>
-
-        </div>
-
-      </div>
 
     </aside>
   );
