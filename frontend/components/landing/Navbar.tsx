@@ -38,7 +38,7 @@ export default function Navbar() {
           <div className="mx-1 h-5 w-px bg-white/10" />
 
           <a
-            href="https://github.com/Anirudh-Kambampati/ResumeForge"
+            href="https://github.com/Anirudh-Kambampati/ResumeForge-Resume-Analyzer"
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm transition-all duration-300 hover:border-blue-500/40 hover:bg-white/[0.05]"
