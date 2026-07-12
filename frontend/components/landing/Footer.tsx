@@ -32,7 +32,7 @@ export default function Footer() {
         {/* Socials */}
         <div className="mt-12 flex justify-center gap-4">
           <a
-            href="mailto:YOUR_EMAIL@gmail.com"
+            href="mailto:anirudhkambampati@gmail.com"
             className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/40 hover:bg-white/[0.05]"
           >
             <HiOutlineMail size={22} />
