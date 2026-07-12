@@ -3,6 +3,7 @@ import io
 import json
 import re
 import logging
+from datetime import date
 from typing import Optional, List, Dict
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -221,17 +222,22 @@ async def analyze_resume(
     det_score_result = score_resume(extracted_text)
     deterministic_rule_score = det_score_result["total_score"]
     rule_breakdown = det_score_result["breakdown"]
-
+    current_date = date.today().strftime("%B %Y")
     # 2. Extract JD requirements (if applicable) and AI Review
     if is_job_match:
         system_prompt = (
-            "You are an expert AI resume reviewer. "
-            "You must extract structured requirements from the job description and evaluate the resume text. "
-            "You must provide an AI Review Score (0-100) reflecting clarity, impact, positioning, and overall resume strength. "
-            "Explain any meaningful disagreement between the Deterministic Rule Score and your AI Review Score in a 'score_gap_insight'. "
-            "The deterministic score measures ATS-oriented structure and parseability, not content quality. DO NOT recalculate it. DO NOT fabricate candidate claims. "
-            "Output MUST be valid JSON."
-        )
+    "You are an expert AI resume reviewer. "
+    "You must extract structured requirements from the job description and evaluate the resume text. "
+    "You must provide an AI Review Score (0-100) reflecting clarity, impact, positioning, and overall resume strength. "
+    "Explain any meaningful disagreement between the Deterministic Rule Score and your AI Review Score in a 'score_gap_insight'. "
+    "The deterministic score measures ATS-oriented structure and parseability, not content quality. DO NOT recalculate it. DO NOT fabricate candidate claims. "
+    f"The current date is {current_date}. "
+    "Interpret every resume date relative to this current date. "
+    "Never describe a past date as future-dated. "
+    "Before making any temporal claim, compare the resume date against the current date. "
+    "If a date is ambiguous, do not make a temporal criticism. "
+    "Output MUST be valid JSON."
+)
 
         user_prompt = f"""
 Deterministic Rule Score: {deterministic_rule_score}/100
