@@ -235,7 +235,7 @@ async def analyze_resume(
     "Interpret every resume date relative to this current date. "
     "Never describe a past date as future-dated. "
     "Before making any temporal claim, compare the resume date against the current date. "
-    "If a date is ambiguous, do not make a temporal criticism. "
+    "If a date is ambiguous, do not make a temporal criticism. Also explain why date is inconsistent "
     "Output MUST be valid JSON."
 )
 
