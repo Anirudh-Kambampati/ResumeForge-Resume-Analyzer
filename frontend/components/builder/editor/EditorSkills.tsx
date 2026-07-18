@@ -12,6 +12,10 @@ type Props = {
 export default function EditorSkills({ resume, setResume }: Props) {
   const [newCategoryTitle, setNewCategoryTitle] = useState("");
 
+  // Local raw text for each category's textarea to preserve cursor position.
+  // Keyed by category.id. Falls back to items.join(", ") when unset.
+  const [skillTexts, setSkillTexts] = useState<Record<string, string>>({});
+
   const updateSkills = (skills: SkillCategory[]) => {
     setResume({
       ...resume,
@@ -33,6 +37,11 @@ export default function EditorSkills({ resume, setResume }: Props) {
 
   const removeCategory = (id: string) => {
     updateSkills(resume.skills.filter((cat) => cat.id !== id));
+    setSkillTexts((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   const updateCategoryTitle = (id: string, newTitle: string) => {
@@ -45,7 +54,19 @@ export default function EditorSkills({ resume, setResume }: Props) {
     updateSkills(updated);
   };
 
+  /**
+   * Get the text to display in a category's textarea.
+   * If the user has typed into it, return their raw text (preserves cursor).
+   * Otherwise, fall back to the model's items joined by ", ".
+   */
+  const getSkillText = (cat: SkillCategory): string =>
+    skillTexts[cat.id] ?? cat.items.join(", ");
+
   const handleItemsChange = (id: string, rawValue: string) => {
+    // 1. Update local raw text (source of truth for the textarea display)
+    setSkillTexts((prev) => ({ ...prev, [id]: rawValue }));
+
+    // 2. Parse into items and update model
     const items = rawValue.split(",").map((i) => i.trim()).filter(Boolean);
     const updated = resume.skills.map((cat) => {
       if (cat.id === id) {
@@ -119,7 +140,7 @@ export default function EditorSkills({ resume, setResume }: Props) {
             <div className="space-y-1">
               <label className="text-xs font-semibold text-zinc-500">Skills (Comma-separated)</label>
               <textarea
-                value={category.items.join(", ")}
+                value={getSkillText(category)}
                 onChange={(e) => handleItemsChange(category.id, e.target.value)}
                 placeholder="e.g. React, Next.js, Vue, Angular"
                 rows={2}

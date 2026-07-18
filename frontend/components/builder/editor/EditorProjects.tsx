@@ -18,6 +18,10 @@ export default function EditorProjects({ resume, setResume }: Props) {
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState<{ itemId: string; bulletIdx: number; text: string } | null>(null);
 
+  // Local raw text for each project's technologies input to preserve cursor position.
+  // Keyed by project.id. Falls back to technologies.join(", ") when unset.
+  const [techTexts, setTechTexts] = useState<Record<string, string>>({});
+
   const updateProjects = (projects: Project[]) => {
     setResume({
       ...resume,
@@ -41,6 +45,11 @@ export default function EditorProjects({ resume, setResume }: Props) {
 
   const removeProject = (id: string) => {
     updateProjects(resume.projects.filter((proj) => proj.id !== id));
+    setTechTexts((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     if (expandedId === id) setExpandedId(null);
   };
 
@@ -54,9 +63,20 @@ export default function EditorProjects({ resume, setResume }: Props) {
     updateProjects(updated);
   };
 
-  const handleTechChange = (id: string, value: string) => {
-    // Convert comma-separated string to array
-    const techs = value.split(",").map((t) => t.trim()).filter(Boolean);
+  /**
+   * Get the text to display in a project's technologies input.
+   * If the user has typed into it, return their raw text (preserves cursor).
+   * Otherwise, fall back to the model's technologies joined by ", ".
+   */
+  const getTechText = (project: Project): string =>
+    techTexts[project.id] ?? project.technologies.join(", ");
+
+  const handleTechChange = (id: string, rawValue: string) => {
+    // 1. Update local raw text (source of truth for the input display)
+    setTechTexts((prev) => ({ ...prev, [id]: rawValue }));
+
+    // 2. Parse into array and update model
+    const techs = rawValue.split(",").map((t) => t.trim()).filter(Boolean);
     updateField(id, "technologies", techs);
   };
 
@@ -279,7 +299,7 @@ export default function EditorProjects({ resume, setResume }: Props) {
                     <label className="text-xs font-semibold text-zinc-400">Technologies (Comma-separated)</label>
                     <input
                       type="text"
-                      value={project.technologies.join(", ")}
+                      value={getTechText(project)}
                       onChange={(e) => handleTechChange(project.id, e.target.value)}
                       placeholder="e.g. Next.js, FastAPI, PostgreSQL, Tailwind"
                       className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"

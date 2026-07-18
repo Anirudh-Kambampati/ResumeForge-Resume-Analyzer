@@ -680,7 +680,7 @@ const RULE_LABELS: Record<string, string> = {
   standard_ats_structure: "Standard ATS Structure",
   contact_parseability: "Contact Parseability",
   section_recognition: "Section Recognition",
-  date_consistency: "Date Consistency",
+  resume_conciseness: "Resume Conciseness",
   layout_safety_signals: "Layout Safety Signals",
   skills_extractability: "Skills Extractability",
   content_structure: "Content Structure",
