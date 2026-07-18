@@ -201,6 +201,38 @@ export const mockResume: Resume = {
     },
   ],
 
+  research: [
+    {
+      id: "research-nlp",
+      enabled: true,
+      title: "Efficient Transformer Architectures for Biomedical NLP",
+      institution: "Stanford AI Lab",
+      advisor: "Dr. Christopher Manning",
+      duration: "Jun 2023 - Present",
+      link: "https://arxiv.org/abs/example",
+      keywords: ["NLP", "Transformers", "Bioinformatics"],
+      bullets: [
+        "Designed a sparse attention mechanism that reduced memory usage by 40% on long biomedical texts.",
+        "Published findings at ACL 2024 with the advisor as co-author.",
+      ],
+    },
+  ],
+
+  publications: [
+    {
+      id: "pub-acl",
+      enabled: true,
+      title: "Sparse Biomedical Attention: Efficient Long-Form Understanding",
+      authors: "John Doe, Christopher Manning",
+      venue: "ACL 2024",
+      date: "Aug 2024",
+      doi: "https://doi.org/10.xxxx/acl.2024.123",
+      keywords: ["Attention", "Efficiency", "Biomedical"],
+      description:
+        "Proposes a novel sparse attention pattern tailored for biomedical text, achieving state-of-the-art results on three benchmark datasets while reducing computational cost by 35%.",
+    },
+  ],
+
   languages: [],
 
   customSections: [],

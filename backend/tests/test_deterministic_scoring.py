@@ -35,9 +35,26 @@ class DeterministicScoringTests(unittest.TestCase):
     def test_missing_contact_lowers_contact_score(self):
         self.assertLess(score_resume("SKILLS\nPython")["breakdown"]["contact_parseability"]["score"], 10)
 
-    def test_inconsistent_dates_are_reported(self):
+    def test_date_consistency_is_not_scored(self):
         result = score_resume(RESUME + "\nEXPERIENCE\nJan 2024\n2023-08\nMarch '22\n04/2021")
-        self.assertGreater(result["breakdown"]["date_consistency"]["evidence"]["inconsistent_date_count"], 0)
+        self.assertNotIn("date_consistency", result["breakdown"])
+        self.assertIn("resume_conciseness", result["breakdown"])
+
+    def test_concise_resume_scores_well(self):
+        result = score_resume(RESUME)
+        self.assertGreaterEqual(result["breakdown"]["resume_conciseness"]["score"], 8)
+
+    def test_long_bullet_reduces_conciseness_score(self):
+        long_bullet = (
+            "\nEXPERIENCE\n"
+            "\u2022 Built and developed a highly complex backend application that was designed "
+            "to handle many different types of requests while also ensuring that the application "
+            "remained maintainable and easy to understand for developers working across multiple "
+            "different parts of the entire project."
+        )
+
+        result = score_resume(RESUME + long_bullet)
+        self.assertLess(result["breakdown"]["resume_conciseness"]["score"], 10)
 
     def test_empty_extraction_scores_poorly(self):
         self.assertEqual(score_resume("")["breakdown"]["machine_readability"]["score"], 0)
@@ -52,3 +69,6 @@ class DeterministicScoringTests(unittest.TestCase):
         results = [calculate_job_match(RESUME, requirements) for _ in range(5)]
         self.assertTrue(all(result == results[0] for result in results))
 
+
+if __name__ == "__main__":
+    unittest.main()

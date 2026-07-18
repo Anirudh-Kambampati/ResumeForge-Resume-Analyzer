@@ -1,6 +1,12 @@
 "use client";
 
-import { Download, RotateCcw, CloudCheck, CloudLightning, Loader2 } from "lucide-react";
+import {
+  Download,
+  RotateCcw,
+  CloudCheck,
+  CloudLightning,
+  Loader2,
+} from "lucide-react";
 import { useState } from "react";
 import { pdf } from "@react-pdf/renderer";
 import { ResumePDFDocument } from "./preview/ResumePDFDocument";
@@ -23,19 +29,50 @@ export default function BuilderTopbar({
   const handleDownload = async () => {
     try {
       setIsDownloading(true);
-      const blob = await pdf(<ResumePDFDocument resume={resume} />).toBlob();
-      const url = URL.createObjectURL(blob);
-      
-      const a = document.createElement("a");
-      a.href = url;
-      const safeName = (fullName || "Resume").replace(/[^a-z0-9]/gi, '_');
-      a.download = `${safeName}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+
+      const pdfBlob = await pdf(
+        <ResumePDFDocument resume={resume} />
+      ).toBlob();
+
+      const safeName = (fullName || "Resume")
+        .trim()
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+        .replace(/\s+/g, "_");
+
+      // IE / Legacy Edge fallback
+      if ((window.navigator as any).msSaveOrOpenBlob) {
+        (window.navigator as any).msSaveOrOpenBlob(
+          pdfBlob,
+          `${safeName}.pdf`
+        );
+        return;
+      }
+
+      // Wrap the PDF blob as a generic binary blob to prevent
+      // Chrome's inline PDF viewer from intercepting the download.
+      const downloadBlob = new Blob([pdfBlob], {
+        type: "application/octet-stream",
+      });
+
+      const url = URL.createObjectURL(downloadBlob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${safeName}.pdf`;
+      link.style.display = "none";
+
+      document.body.appendChild(link);
+
+      requestAnimationFrame(() => {
+        link.click();
+
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 100);
+      });
     } catch (error) {
-      console.error("PDF generation failed", error);
+      console.error("PDF generation failed:", error);
     } finally {
       setIsDownloading(false);
     }
@@ -43,7 +80,6 @@ export default function BuilderTopbar({
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-white/10 bg-[#09090B] px-8">
-
       {/* Left */}
       <div className="flex items-center gap-6">
         <div>
@@ -55,7 +91,6 @@ export default function BuilderTopbar({
           </p>
         </div>
 
-        {/* Autosave Status Badge */}
         <div className="flex items-center gap-1.5 rounded-full bg-white/[0.03] border border-white/5 px-3 py-1 text-xs">
           {saveStatus === "Saved" ? (
             <>
@@ -64,8 +99,13 @@ export default function BuilderTopbar({
             </>
           ) : (
             <>
-              <CloudLightning className="text-yellow-500 animate-pulse" size={14} />
-              <span className="text-zinc-400 font-medium">Saving...</span>
+              <CloudLightning
+                className="text-yellow-500 animate-pulse"
+                size={14}
+              />
+              <span className="text-zinc-400 font-medium">
+                Saving...
+              </span>
             </>
           )}
         </div>
@@ -73,7 +113,6 @@ export default function BuilderTopbar({
 
       {/* Right */}
       <div className="flex items-center gap-3">
-
         <button
           onClick={resetResume}
           className="
@@ -119,12 +158,15 @@ export default function BuilderTopbar({
             disabled:cursor-not-allowed
           "
         >
-          {isDownloading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
+          {isDownloading ? (
+            <Loader2 className="animate-spin" size={16} />
+          ) : (
+            <Download size={16} />
+          )}
+
           {isDownloading ? "Generating..." : "Download PDF"}
         </button>
-
       </div>
-
     </header>
   );
 }

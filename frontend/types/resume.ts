@@ -24,6 +24,10 @@ export interface Resume {
 
   languages: Language[];
 
+  research: Research[];
+
+  publications: Publication[];
+
   customSections: CustomSection[];
 }
 
@@ -111,6 +115,26 @@ export interface Language extends BaseSection {
   name: string;
 
   proficiency: string;
+}
+
+export interface Research extends BaseSection {
+  title: string;
+  institution: string;
+  advisor: string;
+  duration: string;
+  link: string;
+  keywords: string[];
+  bullets: string[];
+}
+
+export interface Publication extends BaseSection {
+  title: string;
+  authors: string;
+  venue: string;
+  date: string;
+  doi: string;
+  keywords: string[];
+  description: string;
 }
 
 export interface CustomSection extends BaseSection {

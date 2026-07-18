@@ -7,6 +7,8 @@ import {
   Briefcase,
   GraduationCap,
   FolderKanban,
+  FlaskConical,
+  BookOpen,
   Wrench,
   Trophy,
   Award,
@@ -44,6 +46,16 @@ const sections: {
     id: "Projects",
     label: "Projects",
     icon: FolderKanban,
+  },
+  {
+    id: "Research",
+    label: "Research",
+    icon: FlaskConical,
+  },
+  {
+    id: "Publications",
+    label: "Publications",
+    icon: BookOpen,
   },
   {
     id: "Skills",

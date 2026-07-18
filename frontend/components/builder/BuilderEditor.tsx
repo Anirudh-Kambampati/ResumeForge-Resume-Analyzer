@@ -12,6 +12,9 @@ import EditorAchievements from "./editor/EditorAchievements";
 import EditorCertifications from "./editor/EditorCertifications";
 import EditorLanguages from "./editor/EditorLanguages";
 
+import GenericEntryEditor from "./editor/GenericEntryEditor";
+import { sectionConfigs } from "@/lib/sectionConfig";
+
 type Props = {
   resume: Resume;
   setResume: (resume: Resume) => void;
@@ -36,7 +39,15 @@ export default function BuilderEditor({
           case "Education":
             return <EditorEducation resume={resume} setResume={setResume} />;
           case "Projects":
-            return <EditorProjects resume={resume} setResume={setResume} />;
+          case "Research":
+          case "Publications":
+            return (
+              <GenericEntryEditor
+                resume={resume}
+                setResume={setResume}
+                config={sectionConfigs[selectedSection]}
+              />
+            );
           case "Skills":
             return <EditorSkills resume={resume} setResume={setResume} />;
           case "Achievements":

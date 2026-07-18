@@ -26,45 +26,17 @@ import {
 //   500 Medium  — dates, org names, institutions, descriptors
 //   600 SemiBold — job/project/degree titles, skill labels
 //   700 Bold    — name, section headings
-// ====================================================// Font.register disabled for testing
+// ============================================================
+
 Font.register({
   family: "Sans",
   fonts: [
-    {
-      src: "/fonts/inter/Inter-Regular.ttf",
-      fontWeight: 400,
-      fontStyle: "normal",
-    },
-    {
-      src: "/fonts/inter/Inter-Italic.ttf",
-      fontWeight: 400,
-      fontStyle: "italic",
-    },
-    {
-      src: "/fonts/inter/Inter-Medium.ttf",
-      fontWeight: 500,
-      fontStyle: "normal",
-    },
-    {
-      src: "/fonts/inter/Inter-MediumItalic.ttf",
-      fontWeight: 500,
-      fontStyle: "italic",
-    },
-    {
-      src: "/fonts/inter/Inter-SemiBold.ttf",
-      fontWeight: 600,
-      fontStyle: "normal",
-    },
-    {
-      src: "/fonts/inter/Inter-Bold.ttf",
-      fontWeight: 700,
-      fontStyle: "normal",
-    },
-    {
-      src: "/fonts/inter/Inter-BoldItalic.ttf",
-      fontWeight: 700,
-      fontStyle: "italic",
-    },
+    { src: "/fonts/inter/Inter-Regular.ttf", fontWeight: 400 },
+    { src: "/fonts/inter/Inter-Italic.ttf", fontWeight: 400, fontStyle: "italic" },
+    { src: "/fonts/inter/Inter-Medium.ttf", fontWeight: 500 },
+    { src: "/fonts/inter/Inter-MediumItalic.ttf", fontWeight: 500, fontStyle: "italic" },
+    { src: "/fonts/inter/Inter-SemiBold.ttf", fontWeight: 600 },
+    { src: "/fonts/inter/Inter-Bold.ttf", fontWeight: 700 },
   ],
 });
 

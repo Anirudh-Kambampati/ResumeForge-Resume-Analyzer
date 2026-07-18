@@ -10,6 +10,8 @@ export type BuilderSection =
   | "Experience"
   | "Education"
   | "Projects"
+  | "Research"
+  | "Publications"
   | "Skills"
   | "Achievements"
   | "Certifications"
