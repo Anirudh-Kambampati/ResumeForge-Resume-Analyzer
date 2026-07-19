@@ -99,15 +99,12 @@ ResumeForge
 
 ---
 
-## 🧭 Future Additions
+## 🧭 Future Improvements
 
-- More resume templates
-- DOCX support
-- Better ATS analysis
-- Improved job matching
-- Resume history
-- More AI-powered writing tools
-
+- 📄 DOCX support
+- 🤖 More AI-powered writing tools
+- 💼 Smarter job-specific resume tailoring
+- 🎯 AI-powered interview preparation
 ---
 
 ## ⚠️ Disclaimer
