@@ -1,7 +1,14 @@
 import { Resume } from "@/types/resume";
 
+import { LAYOUTS } from "@/config/layouts";
+
 export const mockResume: Resume = {
   id: "resume-001",
+
+  // Presentation defaults
+  template: "ats",
+  layout: "ats",
+  sectionOrder: [...LAYOUTS.ats.sections],
 
   profile: {
     fullName: "John Doe",

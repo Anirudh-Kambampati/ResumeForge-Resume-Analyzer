@@ -1,9 +1,9 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Resume } from "@/types/resume";
 import { BuilderSection } from "@/store/resumeStore";
-import EditorProfile from "./editor/EditorProfile";
-import EditorSummary from "./editor/EditorSummary";
+import EditorAbout from "./editor/EditorAbout";
 import EditorExperience from "./editor/EditorExperience";
 import EditorEducation from "./editor/EditorEducation";
 import EditorProjects from "./editor/EditorProjects";
@@ -26,14 +26,24 @@ export default function BuilderEditor({
   setResume,
   selectedSection,
 }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Smooth-scroll to the top of the editor panel when switching sections
+  useEffect(() => {
+    if (containerRef.current) {
+      const editorPanel = containerRef.current.closest(".overflow-y-auto");
+      if (editorPanel) {
+        editorPanel.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+  }, [selectedSection]);
+
   return (
-    <div className="p-6">
+    <div ref={containerRef} className="p-6">
       {(() => {
         switch (selectedSection) {
           case "Profile":
-            return <EditorProfile resume={resume} setResume={setResume} />;
-          case "Summary":
-            return <EditorSummary resume={resume} setResume={setResume} />;
+            return <EditorAbout resume={resume} setResume={setResume} />;
           case "Experience":
             return <EditorExperience resume={resume} setResume={setResume} />;
           case "Education":

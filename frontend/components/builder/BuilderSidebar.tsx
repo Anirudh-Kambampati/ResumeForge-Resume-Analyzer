@@ -1,83 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import {
-  User,
-  FileText,
-  Briefcase,
-  GraduationCap,
-  FolderKanban,
-  FlaskConical,
-  BookOpen,
-  Wrench,
-  Trophy,
-  Award,
-  Globe,
-} from "lucide-react";
+import { RotateCcw, LayoutDashboard, FileText } from "lucide-react";
+import { useResumeStore, type BuilderSection } from "@/store/resumeStore";
+import TemplateSelector from "./TemplateSelector";
+import { TEMPLATES, type TemplateId } from "@/config/templates";
 
-import { BuilderSection } from "@/store/resumeStore";
-
-const sections: {
-  id: BuilderSection;
-  label: string;
-  icon: React.ElementType;
-}[] = [
-  {
-    id: "Profile",
-    label: "Profile",
-    icon: User,
-  },
-  {
-    id: "Summary",
-    label: "Summary",
-    icon: FileText,
-  },
-  {
-    id: "Experience",
-    label: "Experience",
-    icon: Briefcase,
-  },
-  {
-    id: "Education",
-    label: "Education",
-    icon: GraduationCap,
-  },
-  {
-    id: "Projects",
-    label: "Projects",
-    icon: FolderKanban,
-  },
-  {
-    id: "Research",
-    label: "Research",
-    icon: FlaskConical,
-  },
-  {
-    id: "Publications",
-    label: "Publications",
-    icon: BookOpen,
-  },
-  {
-    id: "Skills",
-    label: "Skills",
-    icon: Wrench,
-  },
-  {
-    id: "Achievements",
-    label: "Achievements",
-    icon: Trophy,
-  },
-  {
-    id: "Certifications",
-    label: "Certifications",
-    icon: Award,
-  },
-  {
-    id: "Languages",
-    label: "Languages",
-    icon: Globe,
-  },
-];
+// @dnd-kit — client-side only to avoid hydration mismatches
+const SectionManager = dynamic(() => import("./SectionManager"), {
+  ssr: false,
+  loading: () => <div className="py-2" />,
+});
 
 type Props = {
   selectedSection: BuilderSection;
@@ -88,76 +22,82 @@ export default function BuilderSidebar({
   selectedSection,
   setSelectedSection,
 }: Props) {
+  const resume = useResumeStore((s) => s.resume);
+  const setLayout = useResumeStore((s) => s.setLayout);
+
+  const isCustom = resume.layout === "custom";
+  const templateName = TEMPLATES[resume.template as TemplateId]?.name ?? "ATS";
+
   return (
-    <aside className="flex w-64 flex-col border-r border-white/10 bg-[#09090B]">
+    <aside className="flex h-full w-60 flex-col border-r border-white/[0.06] bg-[#09090B]">
 
       {/* Logo */}
-
-      <div className="border-b border-white/10 px-6 py-7">
-
-        <h1>
-          <Link
-            href="/"
-            className="cursor-pointer text-2xl font-bold tracking-tight transition-colors hover:text-blue-400"
-          >
-            ResumeForge
-          </Link>
-        </h1>
-
-        <p className="mt-2 text-sm text-zinc-500">
-          ATS Resume Builder
-        </p>
-
+      <div className="shrink-0 border-b border-white/[0.06] px-4 py-[18px]">
+        <Link
+          href="/"
+          className="text-sm font-bold tracking-tight text-white transition-colors hover:text-blue-400"
+        >
+          ResumeForge
+        </Link>
       </div>
 
-      {/* Navigation */}
+      {/* Scrollable content */}
+      <div className="flex flex-1 flex-col overflow-y-auto px-3 py-4">
 
-      <nav className="flex-1 px-4 py-6">
-
+        {/* ============================
+            Template selector
+        ============================ */}
         <div className="space-y-2">
-
-          {sections.map((section) => {
-            const active = selectedSection === section.id;
-
-            const Icon = section.icon;
-
-            return (
-              <button
-                key={section.id}
-                onClick={() => setSelectedSection(section.id)}
-                className={`
-                  flex
-                  w-full
-                  items-center
-                  gap-3
-                  rounded-xl
-                  px-4
-                  py-3
-                  text-left
-                  transition-all
-                  duration-200
-
-                  ${
-                    active
-                      ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                      : "text-zinc-400 hover:bg-white/5 hover:text-white"
-                  }
-                `}
-              >
-                <Icon size={18} />
-
-                <span className="font-medium">
-                  {section.label}
-                </span>
-              </button>
-            );
-          })}
-
+          <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-600">
+            Template
+          </h3>
+          <TemplateSelector />
         </div>
 
-      </nav>
+        {/* ============================
+            Section outline
+        ============================ */}
+        <div className="mt-4 space-y-2.5">
+          <div className="flex items-center gap-1.5">
+            <FileText size={10} className="text-zinc-600" />
+            <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-600">
+              Outline
+            </h3>
+          </div>
 
+          <SectionManager
+            selectedSection={selectedSection}
+            setSelectedSection={setSelectedSection}
+          />
+        </div>
 
+        {/* ============================
+            Custom layout indicator + restore
+        ============================ */}
+        {isCustom && (
+          <div className="mt-auto pt-3">
+            <div className="rounded-lg border border-amber-500/8 bg-amber-500/[0.02] px-3 py-2">
+              <div className="flex items-center gap-2">
+                <LayoutDashboard size={11} className="text-amber-400/50" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-400/50">
+                  Custom Layout
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLayout(resume.template)}
+                className="mt-1.5 flex items-center gap-1.5 text-[10px] font-medium text-amber-400/40 transition-colors hover:text-amber-300"
+              >
+                <RotateCcw size={9} />
+                Restore {templateName} Layout
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Bottom spacer */}
+        <div className="h-2" />
+      </div>
     </aside>
   );
 }

@@ -15,6 +15,8 @@ import {
   COLORS,
   type ResumeLayout,
 } from "@/lib/resumeLayout";
+import { hasSectionData } from "@/config/sections";
+import { getTemplateStyles, type TemplateStyles } from "@/config/templates";
 
 // ============================================================
 // Typography — Inter (sans-serif)
@@ -26,7 +28,7 @@ import {
 //   500 Medium  — dates, org names, institutions, descriptors
 //   600 SemiBold — job/project/degree titles, skill labels
 //   700 Bold    — name, section headings
-// ====================================================// Font.register disabled for testing
+// ============================================================
 Font.register({
   family: "Sans",
   fonts: [
@@ -60,11 +62,7 @@ Font.register({
       fontWeight: 700,
       fontStyle: "normal",
     },
-    {
-      src: "/fonts/inter/Inter-BoldItalic.ttf",
-      fontWeight: 700,
-      fontStyle: "italic",
-    },
+
   ],
 });
 
@@ -81,7 +79,7 @@ const NDASH = " – "; // en-dash with surrounding spaces
 // No magic numbers. Everything flows from L (layout config).
 // ============================================================
 
-function buildStyles(L: ResumeLayout) {
+function buildStyles(L: ResumeLayout, T: TemplateStyles) {
   return StyleSheet.create({
     // Page container
     page: {
@@ -100,25 +98,29 @@ function buildStyles(L: ResumeLayout) {
     },
     displayName: {
       fontFamily: "Sans",
-      fontWeight: 700,
-      fontSize: L.nameFontSize,
+      fontWeight: T.nameFontWeight,
+      fontSize: L.nameFontSize * T.nameSizeMultiplier,
       lineHeight: L.nameLineHeight,
       textAlign: "center" as const,
+      marginBottom: L.nameMarginBottom,
     },
     professionalTitle: {
       fontFamily: "Sans",
-      fontWeight: 400,
+      fontWeight: T.titleFontWeight as 400 | 500 | 600 | 700,
       fontSize: L.titleFontSize,
+      letterSpacing: T.titleLetterSpacing,
       color: COLORS.textSecondary,
       textAlign: "center" as const,
       marginTop: L.titleMarginTop,
+      marginBottom: L.titleMarginBottom,
     },
     contactRow: {
       flexDirection: "row" as const,
       flexWrap: "wrap" as const,
       justifyContent: "center" as const,
       alignItems: "center" as const,
-      marginTop: L.skillsMarginTop,
+      marginTop: 0,
+      marginBottom: 8,
     },
     link: {
       fontFamily: "Sans",
@@ -145,12 +147,12 @@ function buildStyles(L: ResumeLayout) {
     },
     sectionHeading: {
       fontFamily: "Sans",
-      fontWeight: 700,
+      fontWeight: T.sectionHeaderFontWeight,
       fontSize: L.sectionHeaderFontSize,
-      letterSpacing: L.sectionHeaderLetterSpacing,
+      letterSpacing: T.sectionHeaderLetterSpacing,
     },
     sectionDivider: {
-      borderBottomWidth: L.sectionHeaderBorderWidth,
+      borderBottomWidth: Math.max(T.sectionHeaderBorderWidth, 0.75),
       borderBottomColor: COLORS.border,
       marginTop: L.sectionHeaderPaddingBottom,
       marginBottom: L.sectionHeaderMarginBottom,
@@ -183,31 +185,31 @@ function buildStyles(L: ResumeLayout) {
     // Semantic typography roles
     jobTitle: {
       fontFamily: "Sans",
-      fontWeight: 600,
+      fontWeight: T.entryTitleFontWeight,
       fontSize: L.entrySubtitleFontSize,
       color: COLORS.textPrimary,
     },
     companyName: {
       fontFamily: "Sans",
-      fontWeight: 500,
+      fontWeight: T.entrySubtitleFontWeight,
       fontSize: L.entryMetaFontSize,
       color: COLORS.textSecondary,
     },
     projectTitle: {
       fontFamily: "Sans",
-      fontWeight: 600,
+      fontWeight: T.entryTitleFontWeight,
       fontSize: L.entrySubtitleFontSize,
       color: COLORS.textPrimary,
     },
     researchTitle: {
       fontFamily: "Sans",
-      fontWeight: 600,
+      fontWeight: T.entryTitleFontWeight,
       fontSize: L.entrySubtitleFontSize,
       color: COLORS.textPrimary,
     },
     publicationTitle: {
       fontFamily: "Sans",
-      fontWeight: 600,
+      fontWeight: T.entryTitleFontWeight,
       fontSize: L.entrySubtitleFontSize,
       color: COLORS.textPrimary,
     },
@@ -284,7 +286,7 @@ function buildStyles(L: ResumeLayout) {
     },
     skillTitle: {
       fontFamily: "Sans",
-      fontWeight: 600,
+      fontWeight: T.entryTitleFontWeight,
       fontSize: L.skillsItemFontSize,
       color: COLORS.textPrimary,
     },
@@ -318,7 +320,7 @@ function buildStyles(L: ResumeLayout) {
     },
     certificationTitle: {
       fontFamily: "Sans",
-      fontWeight: 600,
+      fontWeight: T.entryTitleFontWeight,
       fontSize: L.certificationsItemFontSize,
       color: COLORS.textPrimary,
     },
@@ -355,7 +357,7 @@ function buildStyles(L: ResumeLayout) {
     },
     languageName: {
       fontFamily: "Sans",
-      fontWeight: 700,
+      fontWeight: T.entryTitleFontWeight,
       color: COLORS.textPrimary,
     },
     languageProficiency: {
@@ -453,7 +455,7 @@ const Entry = ({
         </Text>
         {institution ? <Text style={styles.companyName}>{institution}</Text> : null}
         {authors ? <Text style={styles.companyName}>{authors}</Text> : null}
-        {extraLeft}
+        {extraLeft ? <View style={{ marginBottom: 2 }}>{extraLeft}</View> : null}
       </View>
       <View style={{ alignItems: "flex-end" as const }}>
         {rightTop ? (
@@ -462,9 +464,11 @@ const Entry = ({
           </Text>
         ) : null}
         {rightBottom ? (
-          <Text style={rightBottomStyle || styles.metaItalic}>
-            {rightBottom}
-          </Text>
+          <View style={{ marginTop: 1, marginBottom: 1 }}>
+            <Text style={rightBottomStyle || styles.metaItalic}>
+              {rightBottom}
+            </Text>
+          </View>
         ) : null}
       </View>
     </View>
@@ -473,29 +477,276 @@ const Entry = ({
 );
 
 // ============================================================
+// PDF Section Renderer — driven by sectionOrder from resume
+// ============================================================
+
+function PDFSectionRenderer({
+  section,
+  resume,
+  S,
+  L,
+}: {
+  section: string;
+  resume: Resume;
+  S: ReturnType<typeof buildStyles>;
+  L: ResumeLayout;
+}) {
+  const T = getTemplateStyles(resume.template);
+  const SEP = " — ";
+  const NDASH = " – ";
+
+  switch (section) {
+    case "Experience": {
+      const items = (resume.experience || []).filter((item) => item.enabled);
+      if (items.length === 0) return null;
+      return (
+        <Section title="EXPERIENCE" styles={S}>
+          {items.map((item, idx) => (
+            <Entry
+              key={item.id}
+              styles={S}
+              isFirst={idx === 0}
+              title={item.role}
+              titleStyle={S.jobTitle}
+              subtitle={item.company}
+              rightTop={`${item.location ? `${item.location} | ` : ""}${item.startDate}${NDASH}${item.currentlyWorking ? "Present" : item.endDate}`}
+            >
+              {item.bullets && item.bullets.length > 0 && (
+                <Bullets items={item.bullets} styles={S} />
+              )}
+            </Entry>
+          ))}
+        </Section>
+      );
+    }
+
+    case "Education": {
+      const items = (resume.education || []).filter((item) => item.enabled);
+      if (items.length === 0) return null;
+      return (
+        <Section title="EDUCATION" styles={S}>
+          {items.map((item, idx) => (
+            <Entry
+              key={item.id}
+              styles={S}
+              isFirst={idx === 0}
+              title={item.degree}
+              titleStyle={S.jobTitle}
+              subtitle={item.field}
+              subtitlePrefix=" in "
+              institution={item.institution}
+              extraLeft={item.grade ? <Text style={S.captionItalic}>GPA: {item.grade}</Text> : null}
+              rightTop={`${item.startDate}${NDASH}${item.endDate}`}
+            />
+          ))}
+        </Section>
+      );
+    }
+
+    case "Projects": {
+      const items = (resume.projects || []).filter((item) => item.enabled);
+      if (items.length === 0) return null;
+      return (
+        <Section title="PROJECTS" styles={S}>
+          {items.map((item, idx) => (
+            <Entry
+              key={item.id}
+              styles={S}
+              isFirst={idx === 0}
+              title={item.title}
+              titleStyle={S.projectTitle}
+              extraLeft={item.link ? <View style={{ marginTop: 2 }}><Text style={S.caption}>({item.link})</Text></View> : null}
+              rightTop={item.technologies?.length > 0 ? item.technologies.join(", ") : undefined}
+              rightTopStyle={S.metaMediumItalic}
+            >
+              {item.bullets && item.bullets.length > 0 && (
+                <Bullets items={item.bullets} styles={S} />
+              )}
+            </Entry>
+          ))}
+        </Section>
+      );
+    }
+
+    case "Research": {
+      const items = (resume.research || []).filter((item: any) => item.enabled);
+      if (items.length === 0) return null;
+      return (
+        <Section title="RESEARCH" styles={S}>
+          {items.map((item: any, idx: number) => (
+            <Entry
+              key={item.id}
+              styles={S}
+              isFirst={idx === 0}
+              title={item.title}
+              titleStyle={S.researchTitle}
+              subtitle={item.institution}
+              extraLeft={
+                (item.advisor || item.link) ? (
+                  <Text style={S.captionItalic}>
+                    {item.advisor ? `Advisor: ${item.advisor}` : ""}
+                    {item.advisor && item.link ? " | " : ""}
+                    {item.link ? item.link : ""}
+                  </Text>
+                ) : null
+              }
+              rightTop={item.duration}
+              rightBottom={item.keywords?.length > 0 ? item.keywords.join(", ") : undefined}
+            >
+              {item.bullets && item.bullets.filter(Boolean).length > 0 && (
+                <Bullets items={item.bullets} styles={S} />
+              )}
+            </Entry>
+          ))}
+        </Section>
+      );
+    }
+
+    case "Publications": {
+      const items = (resume.publications || []).filter((item: any) => item.enabled);
+      if (items.length === 0) return null;
+      return (
+        <Section title="PUBLICATIONS" styles={S}>
+          {items.map((item: any, idx: number) => (
+            <Entry
+              key={item.id}
+              styles={S}
+              isFirst={idx === 0}
+              title={item.title}
+              titleStyle={S.publicationTitle}
+              subtitle={item.venue}
+              authors={item.authors}
+              extraLeft={item.doi ? <Text style={S.caption}>({item.doi})</Text> : null}
+              rightTop={item.date}
+              rightBottom={item.keywords?.length > 0 ? item.keywords.join(", ") : undefined}
+            >
+              {item.description ? (
+                <Text style={S.body}>{item.description}</Text>
+              ) : null}
+            </Entry>
+          ))}
+        </Section>
+      );
+    }
+
+    case "Skills": {
+      const active = (resume.skills || []).filter(
+        (item) => item.title?.trim() && item.items?.some((s) => s.trim())
+      );
+      if (active.length === 0) return null;
+      return (
+        <Section title="SKILLS" styles={S}>
+          <View style={S.skillsContainer}>
+            {active.map((item) => (
+              <View key={item.id} style={S.skillRow}>
+                <Text style={S.skillTitle}>{item.title}: </Text>
+                <Text style={S.skillItems}>
+                  {[...new Set(item.items.filter(Boolean))].join(", ")}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </Section>
+      );
+    }
+
+    case "Achievements": {
+      const items = (resume.achievements || []).filter(
+        (item) => item.enabled && (item.title || item.description)
+      );
+      if (items.length === 0) return null;
+      return (
+        <Section title="ACHIEVEMENTS" styles={S}>
+          <View style={S.bulletList}>
+            {items.map((item) => (
+              <View key={item.id} style={S.bullet}>
+                <Text style={S.bulletMark}>{"\u2022"}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={S.bulletText}>
+                    {item.title}{item.title && item.description ? SEP : ""}{item.description || ""}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </Section>
+      );
+    }
+
+    case "Certifications": {
+      const items = (resume.certifications || []).filter((item) => item.enabled);
+      if (items.length === 0) return null;
+      const renderCert = (c: any, idx: number) => (
+        <View key={c.id} style={S.certificationItem}>
+          <View style={S.certificationMain}>
+            <Text style={S.certificationTitle}>
+              {c.title}
+              <Text style={S.certificationIssuer}> &mdash; {c.issuer}</Text>
+            </Text>
+            {c.credentialId && (
+              <Text style={S.certificationId}>({c.credentialId})</Text>
+            )}
+          </View>
+          <Text style={S.certificationDate}>{c.date}</Text>
+        </View>
+      );
+      const leftCol = items.filter((_, idx) => idx % 2 === 0);
+      const rightCol = items.filter((_, idx) => idx % 2 === 1);
+      return (
+        <View style={{ marginTop: 4 }}>
+        <Section title="CERTIFICATIONS" styles={S}>
+          <View style={S.certificationsContainer}>
+            <View style={S.certificationsColumn}>
+              {leftCol.map(renderCert)}
+            </View>
+            {rightCol.length > 0 && (
+              <View style={S.certificationsColumn}>
+                {rightCol.map(renderCert)}
+              </View>
+            )}
+          </View>
+        </Section>
+        </View>
+      );
+    }
+
+    case "Languages": {
+      const items = (resume.languages || []).filter(
+        (item) => item.enabled && (item.name || item.proficiency)
+      );
+      if (items.length === 0) return null;
+      return (
+        <Section title="LANGUAGES" styles={S}>
+          <View style={S.languagesContainer}>
+            {items.map((lang) => (
+              <Text key={lang.id} style={S.languageItem}>
+                {lang.name && <Text style={S.languageName}>{lang.name}</Text>}
+                {lang.name && lang.proficiency && ": "}
+                {lang.proficiency && (
+                  <Text style={S.languageProficiency}>{lang.proficiency}</Text>
+                )}
+              </Text>
+            ))}
+          </View>
+        </Section>
+      );
+    }
+
+    default:
+      return null;
+  }
+}
+
+// ============================================================
 // Main Document Component
 // ============================================================
 
 export const ResumePDFDocument = ({ resume }: { resume: Resume }) => {
   const L = getResumeLayout(resume);
-  const S = buildStyles(L);
+  const T = getTemplateStyles(resume.template);
+  const S = buildStyles(L, T);
 
   const profile = resume.profile;
-  const enabledExperience = (resume.experience || []).filter((item) => item.enabled);
-  const enabledEducation = (resume.education || []).filter((item) => item.enabled);
-  const enabledResearch = (resume.research || []).filter((item) => item.enabled);
-  const enabledPublications = (resume.publications || []).filter((item) => item.enabled);
-  const enabledProjects = (resume.projects || []).filter((item) => item.enabled);
-  const activeSkills = (resume.skills || []).filter(
-    (item) => item.title?.trim() && item.items?.some((s) => s.trim())
-  );
-  const achievements = (resume.achievements || []).filter(
-    (item) => item.enabled && (item.title || item.description)
-  );
-  const enabledCertifications = (resume.certifications || []).filter((item) => item.enabled);
-  const enabledLanguages = (resume.languages || []).filter(
-    (item) => item.enabled && (item.name || item.proficiency)
-  );
 
   const contactInfo: { label: string; href?: string }[] = [
     profile.email && { label: profile.email, href: normalizeEmail(profile.email) },
@@ -508,6 +759,11 @@ export const ResumePDFDocument = ({ resume }: { resume: Resume }) => {
       })
       .filter(Boolean),
   ].filter(Boolean) as { label: string; href?: string }[];
+
+  // Render sections in order defined by sectionOrder
+  const sectionsToRender = (resume.sectionOrder || []).filter((section) =>
+    hasSectionData(resume, section)
+  );
 
   return (
     <Document>
@@ -538,225 +794,19 @@ export const ResumePDFDocument = ({ resume }: { resume: Resume }) => {
           )}
         </View>
 
-        {/* Professional Summary */}
+        {/* Professional Summary — rendered directly after header (part of Profile) */}
         {resume.summary?.enabled && resume.summary.text?.trim() && (
           <Section title="PROFESSIONAL SUMMARY" styles={S}>
             <Text style={S.body}>{resume.summary.text}</Text>
           </Section>
         )}
 
-        {/* Experience */}
-        {enabledExperience.length > 0 && (
-          <Section title="EXPERIENCE" styles={S}>
-            {enabledExperience.map((item, idx) => (
-              <Entry
-                key={item.id}
-                styles={S}
-                isFirst={idx === 0}
-                title={item.role}
-                titleStyle={S.jobTitle}
-                subtitle={item.company}
-                rightTop={`${item.location ? `${item.location} | ` : ""}${item.startDate}${NDASH}${item.currentlyWorking ? "Present" : item.endDate}`}
-              >
-                {item.bullets && item.bullets.length > 0 && (
-                  <Bullets items={item.bullets} styles={S} />
-                )}
-              </Entry>
-            ))}
-          </Section>
-        )}
-
-        {/* Education */}
-        {enabledEducation.length > 0 && (
-          <Section title="EDUCATION" styles={S}>
-            {enabledEducation.map((item, idx) => (
-              <Entry
-                key={item.id}
-                styles={S}
-                isFirst={idx === 0}
-                title={item.degree}
-                titleStyle={S.jobTitle}
-                subtitle={item.field}
-                subtitlePrefix=" in "
-                institution={item.institution}
-                extraLeft={item.grade ? <Text style={S.captionItalic}>GPA: {item.grade}</Text> : null}
-                rightTop={`${item.startDate}${NDASH}${item.endDate}`}
-              />
-            ))}
-          </Section>
-        )}
-
-        {/* Projects */}
-        {enabledProjects.length > 0 && (
-          <Section title="PROJECTS" styles={S}>
-            {enabledProjects.map((item, idx) => (
-              <Entry
-                key={item.id}
-                styles={S}
-                isFirst={idx === 0}
-                title={item.title}
-                titleStyle={S.projectTitle}
-                extraLeft={item.link ? <Text style={S.link}>({item.link})</Text> : null}
-                rightTop={item.technologies?.length > 0 ? item.technologies.join(", ") : undefined}
-                rightTopStyle={S.metaMediumItalic}
-              >
-                {item.bullets && item.bullets.length > 0 && (
-                  <Bullets items={item.bullets} styles={S} />
-                )}
-              </Entry>
-            ))}
-          </Section>
-        )}
-
-        {/* Research */}
-        {enabledResearch.length > 0 && (
-          <Section title="RESEARCH" styles={S}>
-            {enabledResearch.map((item, idx) => (
-              <Entry
-                key={item.id}
-                styles={S}
-                isFirst={idx === 0}
-                title={item.title}
-                titleStyle={S.researchTitle}
-                subtitle={item.institution}
-                extraLeft={
-                  (item.advisor || item.link) ? (
-                    <Text style={S.captionItalic}>
-                      {item.advisor ? `Advisor: ${item.advisor}` : ""}
-                      {item.advisor && item.link ? " | " : ""}
-                      {item.link ? item.link : ""}
-                    </Text>
-                  ) : null
-                }
-                rightTop={item.duration}
-                rightBottom={item.keywords?.length > 0 ? item.keywords.join(", ") : undefined}
-              >
-                {item.bullets && item.bullets.filter(Boolean).length > 0 && (
-                  <Bullets items={item.bullets} styles={S} />
-                )}
-              </Entry>
-            ))}
-          </Section>
-        )}
-
-        {/* Publications */}
-        {enabledPublications.length > 0 && (
-          <Section title="PUBLICATIONS" styles={S}>
-            {enabledPublications.map((item, idx) => (
-              <Entry
-                key={item.id}
-                styles={S}
-                isFirst={idx === 0}
-                title={item.title}
-                titleStyle={S.publicationTitle}
-                subtitle={item.venue}
-                authors={item.authors}
-                extraLeft={item.doi ? <Text style={S.caption}>({item.doi})</Text> : null}
-                rightTop={item.date}
-                rightBottom={item.keywords?.length > 0 ? item.keywords.join(", ") : undefined}
-              >
-                {item.description ? (
-                  <Text style={S.body}>{item.description}</Text>
-                ) : null}
-              </Entry>
-            ))}
-          </Section>
-        )}
-
-        {/* Skills */}
-        {activeSkills.length > 0 && (
-          <Section title="SKILLS" styles={S}>
-            <View style={S.skillsContainer}>
-              {activeSkills.map((item) => (
-                <View key={item.id} style={S.skillRow}>
-                  <Text style={S.skillTitle}>{item.title}: </Text>
-                  <Text style={S.skillItems}>
-                    {[...new Set(item.items.filter(Boolean))].join(", ")}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </Section>
-        )}
-
-        {/* Achievements */}
-        {achievements.length > 0 && (
-          <Section title="ACHIEVEMENTS" styles={S}>
-            <View style={S.bulletList}>
-              {achievements.map((item) => (
-                <View key={item.id} style={S.bullet}>
-                  <Text style={S.bulletMark}>{"\u2022"}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={S.bulletText}>
-                      {item.title}{item.title && item.description ? SEP : ""}{item.description || ""}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </Section>
-        )}
-
-        {/* Certifications */}
-        {enabledCertifications.length > 0 && (
-          <Section title="CERTIFICATIONS" styles={S}>
-            <View style={S.certificationsContainer}>
-              <View style={S.certificationsColumn}>
-                {enabledCertifications
-                  .filter((_, idx) => idx % 2 === 0)
-                  .map((c) => (
-                    <View key={c.id} style={S.certificationItem}>
-                      <View style={S.certificationMain}>
-                        <Text style={S.certificationTitle}>
-                          {c.title}
-                          <Text style={S.certificationIssuer}> &mdash; {c.issuer}</Text>
-                        </Text>
-                        {c.credentialId && (
-                          <Text style={S.certificationId}>({c.credentialId})</Text>
-                        )}
-                      </View>
-                      <Text style={S.certificationDate}>{c.date}</Text>
-                    </View>
-                  ))}
-              </View>
-              <View style={S.certificationsColumn}>
-                {enabledCertifications
-                  .filter((_, idx) => idx % 2 === 1)
-                  .map((c) => (
-                    <View key={c.id} style={S.certificationItem}>
-                      <View style={S.certificationMain}>
-                        <Text style={S.certificationTitle}>
-                          {c.title}
-                          <Text style={S.certificationIssuer}> &mdash; {c.issuer}</Text>
-                        </Text>
-                        {c.credentialId && (
-                          <Text style={S.certificationId}>({c.credentialId})</Text>
-                        )}
-                      </View>
-                      <Text style={S.certificationDate}>{c.date}</Text>
-                    </View>
-                  ))}
-              </View>
-            </View>
-          </Section>
-        )}
-
-        {/* Languages */}
-        {enabledLanguages.length > 0 && (
-          <Section title="LANGUAGES" styles={S}>
-            <View style={S.languagesContainer}>
-              {enabledLanguages.map((lang) => (
-                <Text key={lang.id} style={S.languageItem}>
-                  {lang.name && <Text style={S.languageName}>{lang.name}</Text>}
-                  {lang.name && lang.proficiency && ": "}
-                  {lang.proficiency && (
-                    <Text style={S.languageProficiency}>{lang.proficiency}</Text>
-                  )}
-                </Text>
-              ))}
-            </View>
-          </Section>
-        )}
+        {/* Render remaining sections in sectionOrder */}
+        {sectionsToRender.map((section) => (
+          <React.Fragment key={section}>
+            {PDFSectionRenderer({ section, resume, S, L })}
+          </React.Fragment>
+        ))}
       </Page>
     </Document>
   );

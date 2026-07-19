@@ -7,6 +7,8 @@ import BuilderEditor from "./BuilderEditor";
 import BuilderPreview from "./BuilderPreview";
 
 import { useResumeStore } from "@/store/resumeStore";
+import { getLayoutSections, type LayoutId } from "@/config/layouts";
+import type { Resume } from "@/types/resume";
 
 export default function BuilderWorkspace() {
   const {
@@ -27,7 +29,14 @@ export default function BuilderWorkspace() {
       try {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === "object" && parsed.id) {
-          setResume(parsed);
+          // Backward compatibility: ensure new fields exist on old saved resumes
+          const patched: Resume = {
+            template: "ats",
+            layout: "ats",
+            sectionOrder: [...getLayoutSections("ats")],
+            ...parsed,
+          };
+          setResume(patched);
         }
       } catch (e) {
         console.error("Failed to parse saved resume from localStorage", e);

@@ -3,9 +3,28 @@ export interface BaseSection {
   enabled: boolean;
 }
 
+// ============================================================
+// Template and Layout types
+// ============================================================
+
+export type ResumeTemplate = "ats" | "faang" | "research";
+
+export type ResumeLayoutName = "ats" | "faang" | "research" | "custom";
+
+// ============================================================
+// Resume — the single source of truth for all resume content
+// Template, layout, and sectionOrder control presentation.
+// ============================================================
+
 export interface Resume {
   id: string;
 
+  // Presentation configuration
+  template: ResumeTemplate;
+  layout: ResumeLayoutName;
+  sectionOrder: string[];
+
+  // Content
   profile: Profile;
 
   summary: Summary;
