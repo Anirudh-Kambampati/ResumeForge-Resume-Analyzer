@@ -1,78 +1,114 @@
-# ResumeForge 📄✨
+<div align="center">
 
-> Build better resumes. Understand why they work.
+# 🔥 ResumeForge
 
-ResumeForge is a full-stack resume builder and analyzer that helps you create ATS-friendly resumes, evaluate resume quality, and compare your resume against real job descriptions.
+### Forge resumes that get noticed.
 
-Instead of throwing a mysterious AI score at you, ResumeForge combines **deterministic ATS analysis** with **AI-powered feedback** to provide meaningful, explainable insights.
+**An AI-powered resume builder and analyzer designed to help job seekers create ATS-friendly, recruiter-ready resumes with a beautiful editing experience.**
 
----
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python)]
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)]
+[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-4-38BDF8?style=for-the-badge&logo=tailwindcss)]
 
-## 🚀 Features
-
-- 🎨 Visual Resume Builder
-- 👀 Live Resume Preview
-- 📄 Text-Preserving PDF Export
-- 📊 Deterministic ATS Scoring
-- 🤖 AI Resume Review
-- 🎯 Job Description Matching
-- ✨ AI-powered Bullet & Summary Improvements
+</div>
 
 ---
 
-## 🛠 Tech Stack
+## ✨ Overview
 
-### Frontend
-- Next.js
-- React
+ResumeForge is an end-to-end resume platform that combines an intuitive visual resume builder with a powerful AI-assisted analyzer.
+
+Whether you're a student applying for internships, a software engineer targeting FAANG, or an experienced professional, ResumeForge helps you create polished, ATS-friendly resumes while providing actionable feedback to improve your chances of landing interviews.
+
+---
+
+# 🚀 Features
+
+### 📝 Visual Resume Builder
+
+- Live resume preview
+- Multiple professional templates
+- Real-time editing
+- ATS-friendly layouts
+- Automatic pagination
+- Export as PDF
+
+---
+
+### 🤖 Resume Analyzer
+
+- ATS compatibility score
+- AI-powered resume feedback
+- Resume section analysis
+- Keyword optimization
+- Grammar & writing suggestions
+- Actionable improvement tips
+
+---
+
+### 🎨 Modern UI
+
+- Responsive design
+- Smooth animations
+- Clean dashboard
+- Professional typography
+- Light & Dark mode support
+- Fast editing experience
+
+---
+
+### ⚡ Performance
+
+- Fast PDF generation
+- Optimized rendering
+- Lightweight frontend
+- Efficient backend APIs
+
+---
+# 🛠️ Tech Stack
+
+## Frontend
+
+- Next.js 16
+- React 19
 - TypeScript
 - Tailwind CSS
-- Zustand
 - Framer Motion
+- React PDF
 
-### Backend
+## Backend
+
 - FastAPI
 - Python
-- PyPDF
+- OpenRouter
 - Pydantic
 
-### AI
-- OpenRouter API
+## AI
+
+- Resume Analysis
+- ATS Scoring
+- Resume Feedback
+- AI Suggestions
 
 ---
 
-## ⚡ Getting Started
+# 🚀 Getting Started
 
-Clone the repository
+## Clone
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Anirudh-Kambampati/ResumeForge-Resume-Analyzer.git
+```
+
+```bash
 cd ResumeForge-Resume-Analyzer
 ```
 
-### Backend
+---
 
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-Create a `.env`
-
-```env
-OPENROUTER_API_KEY=your_key
-OPENROUTER_MODEL=your_model
-```
-
-Run the server
-
-```bash
-uvicorn main:app --reload
-```
-
-### Frontend
+## Frontend
 
 ```bash
 cd frontend
@@ -80,45 +116,49 @@ npm install
 npm run dev
 ```
 
-Create a `.env.local`
+---
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
+## Backend
+
+```bash
+cd backend
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+
+# macOS/Linux
+source .venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
 ---
 
-## 📂 Project Structure
+# 📈 Roadmap
 
-```text
-ResumeForge
-├── frontend
-├── backend
-└── README.md
-```
-
----
-
-## 🧭 Future Improvements
-
-- 📄 DOCX support
-- 🤖 More AI-powered writing tools
-- 💼 Smarter job-specific resume tailoring
-- 🎯 AI-powered interview preparation
----
-
-## ⚠️ Disclaimer
-
-ResumeForge helps you improve your resume—it can't magically get you hired (we're still working on that feature 😉).
-
-Always review AI-generated suggestions before submitting your applications.
+- [x] Resume Builder
+- [x] Resume Analyzer
+- [x] AI Feedback
+- [x] ATS Scoring
+- [x] Multiple Templates
+- [x] Responsive Design
+- [x] PDF Export
+- [ ] Cover Letter Generator
 
 ---
 
-## 👨‍💻 Author
+# 📄 License
 
-**Anirudh Kambampati**
+This project is licensed under the MIT License.
 
-Computer Science student passionate about building practical full-stack applications with AI.
+---
 
-If you found this project useful, consider ⭐ starring the repository!
+<div align="center">
+
+### ⭐ If you found this project useful, consider giving it a star!
+
+**Built with ❤️ by Anirudh Kambampati**
+
+</div>
