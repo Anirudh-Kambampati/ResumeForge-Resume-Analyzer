@@ -145,6 +145,8 @@ uvicorn main:app --reload
 - [x] Multiple Templates
 - [x] Responsive Design
 - [x] PDF Export
+- [ ] Builder Analyzer Sync
+- [ ] Importing Existing Resume
 - [ ] Cover Letter Generator
 
 ---
