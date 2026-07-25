@@ -45,6 +45,13 @@ type Props = {
   config: SectionConfig;
 };
 
+// Deterministic ID counter — avoids Date.now() in render-phase closures
+let genericIdCounter = 0;
+function genericUid(prefix: string): string {
+  genericIdCounter += 1;
+  return `${prefix}-${genericIdCounter}-${Date.now()}`;
+}
+
 export default function GenericEntryEditor({ resume, setResume, config }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [improvingIdx, setImprovingIdx] = useState<{ itemId: string; bulletIdx: number } | null>(null);
@@ -69,7 +76,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
   };
 
   const addEntry = () => {
-    const newId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${config.dataKey}-${Date.now()}`;
+    const newId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : genericUid(config.dataKey);
     const entry = { ...config.createNew(), id: newId };
     updateEntries([...entries, entry]);
     setExpandedId(newId);

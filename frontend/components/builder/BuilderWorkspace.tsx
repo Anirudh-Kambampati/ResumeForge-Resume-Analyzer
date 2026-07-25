@@ -7,7 +7,7 @@ import BuilderEditor from "./BuilderEditor";
 import BuilderPreview from "./BuilderPreview";
 
 import { useResumeStore } from "@/store/resumeStore";
-import { getLayoutSections, type LayoutId } from "@/config/layouts";
+import { getLayoutSections } from "@/config/layouts";
 import type { Resume } from "@/types/resume";
 
 export default function BuilderWorkspace() {

@@ -11,7 +11,6 @@ import { useState } from "react";
 import { pdf } from "@react-pdf/renderer";
 import { ResumePDFDocument } from "./preview/ResumePDFDocument";
 import { useResumeStore } from "@/store/resumeStore";
-import ImportResumeButton from "./ImportResumeButton";
 
 type Props = {
   resetResume: () => void;
@@ -114,7 +113,6 @@ export default function BuilderTopbar({
 
       {/* Right */}
       <div className="flex items-center gap-3">
-        <ImportResumeButton />
 
         <button
           onClick={resetResume}

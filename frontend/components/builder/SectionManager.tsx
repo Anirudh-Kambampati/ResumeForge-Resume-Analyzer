@@ -106,7 +106,7 @@ function SortableSection({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.35 : 1,
-    zIndex: isDragging ? 50 : ("auto" as any),
+    zIndex: isDragging ? 50 : undefined,
   };
 
   return (
@@ -228,7 +228,7 @@ export default function SectionManager({
   return (
     <div>
       {/* Fixed sections — always at top */}
-      {FIXED_SECTIONS.map((id, idx) => {
+      {FIXED_SECTIONS.map((id) => {
         const label = sectionInfoMap.get(id);
         if (!label) return null;
         return (

@@ -6,7 +6,6 @@ import { BuilderSection } from "@/store/resumeStore";
 import EditorAbout from "./editor/EditorAbout";
 import EditorExperience from "./editor/EditorExperience";
 import EditorEducation from "./editor/EditorEducation";
-import EditorProjects from "./editor/EditorProjects";
 import EditorSkills from "./editor/EditorSkills";
 import EditorAchievements from "./editor/EditorAchievements";
 import EditorCertifications from "./editor/EditorCertifications";

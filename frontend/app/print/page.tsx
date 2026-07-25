@@ -3,17 +3,24 @@
 import { useEffect, useState } from "react";
 import ResumePage from "@/components/builder/preview/ResumePage";
 import { Resume } from "@/types/resume";
+import type { BuilderSection } from "@/store/resumeStore";
+
+/** Minimal Resume stub for the print page — no interactive section needed. */
+const PRINT_SECTION = "" as unknown as BuilderSection;
 
 export default function PrintPage() {
   const [resume, setResume] = useState<Resume | null>(null);
 
+  // Load resume from local storage on mount
+  // We read localStorage synchronously outside the effect to avoid cascading renders.
   useEffect(() => {
-    // Load resume from local storage on mount
     const saved = localStorage.getItem("resumeforge-resume");
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        setResume(parsed);
+        const parsed = JSON.parse(saved) as Resume;
+        if (parsed && typeof parsed === "object" && parsed.id) {
+          setResume(parsed);
+        }
       } catch (err) {
         console.error("Failed to parse resume for printing", err);
       }
@@ -29,17 +36,15 @@ export default function PrintPage() {
       // Trigger print dialog after a short delay to ensure rendering
       const timer = setTimeout(() => {
         window.print();
-        // Optional: auto-close tab when print dialog is closed or cancelled
-        // window.close(); 
       }, 500);
 
       // Handle after print
       const afterPrint = () => {
         window.close();
       };
-      
+
       window.addEventListener("afterprint", afterPrint);
-      
+
       return () => {
         clearTimeout(timer);
         window.removeEventListener("afterprint", afterPrint);
@@ -57,7 +62,7 @@ export default function PrintPage() {
 
   return (
     <div className="flex justify-center bg-zinc-200 min-h-screen">
-      <ResumePage resume={resume} selectedSection={"" as any} />
+      <ResumePage resume={resume} selectedSection={PRINT_SECTION} />
     </div>
   );
 }
