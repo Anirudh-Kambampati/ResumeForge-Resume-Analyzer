@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import OnboardingModal from "./OnboardingModal";
 
 const audience = [
   "Students",
@@ -18,6 +19,10 @@ const audience = [
 
 export default function Hero() {
   const [index, setIndex] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+
+  const onOpen = () => setShowModal(true);
+  const onClose = () => setShowModal(false);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -59,12 +64,12 @@ export default function Hero() {
 
         {/* CTA */}
         <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-          <Link
-            href="/builder"
-            className="rounded-2xl bg-blue-600 px-8 py-4 text-base font-medium transition-all duration-300 hover:scale-[1.02] hover:bg-blue-500"
+          <button
+            onClick={onOpen}
+            className="rounded-2xl bg-blue-600 px-8 py-4 text-base font-medium transition-all duration-300 hover:scale-[1.02] hover:bg-blue-500 cursor-pointer"
           >
             Build Resume
-          </Link>
+          </button>
 
           <Link
             href="/analyzer"
@@ -110,6 +115,8 @@ export default function Hero() {
           </div>
         </div>
       </div>
+
+      <OnboardingModal isOpen={showModal} onClose={onClose} />
     </section>
   );
 }
