@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Resume, Experience } from "@/types/resume";
 import { Plus, Trash, Sparkles, ChevronDown, ChevronUp, Check, X, AlertCircle } from "lucide-react";
 import { normalizeError } from "@/lib/errorHelper";
+import ClearableInput from "@/components/ui/ClearableInput";
+import ClearableTextarea from "@/components/ui/ClearableTextarea";
 
 type Props = {
   resume: Resume;
@@ -256,22 +258,20 @@ export default function EditorExperience({ resume, setResume }: Props) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Company Name</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={exp.company}
                         onChange={(e) => updateField(exp.id, "company", e.target.value)}
+                        onClear={() => updateField(exp.id, "company", "")}
                         placeholder="e.g. Google"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Role / Title</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={exp.role}
                         onChange={(e) => updateField(exp.id, "role", e.target.value)}
+                        onClear={() => updateField(exp.id, "role", "")}
                         placeholder="e.g. Software Engineer"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                   </div>
@@ -279,33 +279,31 @@ export default function EditorExperience({ resume, setResume }: Props) {
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Location</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={exp.location}
                         onChange={(e) => updateField(exp.id, "location", e.target.value)}
+                        onClear={() => updateField(exp.id, "location", "")}
                         placeholder="e.g. Mountain View, CA"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Start Date</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={exp.startDate}
                         onChange={(e) => updateField(exp.id, "startDate", e.target.value)}
+                        onClear={() => updateField(exp.id, "startDate", "")}
                         placeholder="e.g. Jan 2023"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">End Date</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={exp.endDate}
                         onChange={(e) => updateField(exp.id, "endDate", e.target.value)}
+                        onClear={() => updateField(exp.id, "endDate", "")}
                         disabled={exp.currentlyWorking}
                         placeholder={exp.currentlyWorking ? "Present" : "e.g. Dec 2024"}
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none disabled:opacity-40"
+                        className="disabled:opacity-40"
                       />
                     </div>
                   </div>
@@ -361,25 +359,13 @@ export default function EditorExperience({ resume, setResume }: Props) {
                           <div key={bulletIdx} className="space-y-2">
                             <div className="flex gap-2">
                               <span className="text-zinc-500 text-sm mt-2.5 font-bold">&bull;</span>
-                              <textarea
+                              <ClearableTextarea
                                 value={bullet}
                                 onChange={(e) => updateBullet(exp.id, bulletIdx, e.target.value)}
+                                onClear={() => updateBullet(exp.id, bulletIdx, "")}
                                 placeholder="Describe your achievements (e.g. Redesigned frontend layout, improving user conversion rate by 15%)"
                                 rows={2}
-                                className="
-                                  flex-1
-                                  rounded-lg
-                                  border
-                                  border-white/10
-                                  bg-[#0C0C0E]
-                                  px-3
-                                  py-2
-                                  text-sm
-                                  text-white
-                                  focus:border-blue-500
-                                  outline-none
-                                  resize-none
-                                "
+                                className="flex-1 resize-none"
                               />
                               <div className="flex flex-col gap-1.5 justify-center">
                                 <button

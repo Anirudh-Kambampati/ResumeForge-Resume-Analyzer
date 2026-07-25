@@ -25,10 +25,12 @@ export const mockResume: Resume = {
       {
         label: "LinkedIn",
         url: "linkedin.com/in/johndoe",
+        username: "johndoe",
       },
       {
         label: "GitHub",
         url: "github.com/johndoe",
+        username: "johndoe",
       },
       {
         label: "Portfolio",

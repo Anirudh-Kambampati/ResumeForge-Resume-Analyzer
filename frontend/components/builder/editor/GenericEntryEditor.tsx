@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Resume } from "@/types/resume";
 import { Plus, Trash, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Sparkles, Check, X, AlertCircle } from "lucide-react";
 import { normalizeError } from "@/lib/errorHelper";
+import ClearableInput from "@/components/ui/ClearableInput";
+import ClearableTextarea from "@/components/ui/ClearableTextarea";
 
 // ============================================================
 // Field definition for a configurable entry section
@@ -174,55 +176,79 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
     const value = entry[field.key] ?? "";
 
     switch (field.type) {
-      case "url":
+      case "url": {
+        const hasUrlValue = typeof value === "string" && value.trim().length > 0;
         return (
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => updateField(entry.id, field.key, e.target.value)}
-            placeholder={field.placeholder}
-            className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => updateField(entry.id, field.key, e.target.value)}
+              placeholder={field.placeholder}
+              className={`w-full rounded-lg border border-white/10 bg-[#0C0C0E] py-2 text-sm text-white focus:border-blue-500 outline-none ${
+                hasUrlValue ? "pr-8 px-3" : "px-3"
+              }`}
+            />
+            {hasUrlValue && (
+              <button
+                type="button"
+                onClick={() => updateField(entry.id, field.key, "")}
+                aria-label="Clear link"
+                tabIndex={0}
+                className="
+                  absolute right-1.5 top-1/2 -translate-y-1/2
+                  flex items-center justify-center
+                  w-5 h-5 rounded
+                  text-zinc-500 hover:text-red-400
+                  cursor-pointer
+                  transition-colors
+                "
+              >
+                <span className="text-sm leading-none font-medium">&times;</span>
+              </button>
+            )}
+          </div>
         );
+      }
       case "tags":
         return (
-          <input
-            type="text"
+          <ClearableInput
             value={getTagText(entry)}
             onChange={(e) => handleTagChange(entry.id, e.target.value)}
+            onClear={() => handleTagChange(entry.id, "")}
             placeholder={field.placeholder}
-            className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
           />
         );
       case "textarea":
         return (
-          <textarea
+          <ClearableTextarea
             value={value}
             onChange={(e) => updateField(entry.id, field.key, e.target.value)}
+            onClear={() => updateField(entry.id, field.key, "")}
             placeholder={field.placeholder}
             rows={3}
-            className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none resize-none"
+            className="resize-none"
           />
         );
       case "textarea-sm":
         return (
-          <textarea
+          <ClearableTextarea
             value={value}
             onChange={(e) => updateField(entry.id, field.key, e.target.value)}
+            onClear={() => updateField(entry.id, field.key, "")}
             placeholder={field.placeholder}
             rows={2}
-            className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none resize-none"
+            className="resize-none"
           />
         );
       case "text":
       default:
         return (
-          <input
-            type="text"
+          <ClearableInput
             value={value}
             onChange={(e) => updateField(entry.id, field.key, e.target.value)}
+            onClear={() => updateField(entry.id, field.key, "")}
             placeholder={field.placeholder}
-            className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
           />
         );
     }

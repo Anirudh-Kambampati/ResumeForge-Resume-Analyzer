@@ -7,9 +7,13 @@ import {
   StyleSheet,
   Text,
   View,
+  Svg,
+  Path,
+  Circle,
+  Rect,
 } from "@react-pdf/renderer";
 import { Resume } from "@/types/resume";
-import { normalizeEmail, normalizeUrl } from "@/lib/contactLinks";
+import { normalizeEmail, normalizeUrl, normalizeExternalUrl, getLinkDisplay, buildContactItems, type ContactItem } from "@/lib/contactLinks";
 import {
   getResumeLayout,
   COLORS,
@@ -548,22 +552,31 @@ function PDFSectionRenderer({
       if (items.length === 0) return null;
       return (
         <Section title="PROJECTS" styles={S}>
-          {items.map((item, idx) => (
-            <Entry
-              key={item.id}
-              styles={S}
-              isFirst={idx === 0}
-              title={item.title}
-              titleStyle={S.projectTitle}
-              extraLeft={item.link ? <View style={{ marginTop: 2 }}><Text style={S.caption}>({item.link})</Text></View> : null}
-              rightTop={item.technologies?.length > 0 ? item.technologies.join(", ") : undefined}
-              rightTopStyle={S.metaMediumItalic}
-            >
-              {item.bullets && item.bullets.length > 0 && (
-                <Bullets items={item.bullets} styles={S} />
-              )}
-            </Entry>
-          ))}
+          {items.map((item, idx) => {
+            const projectLink = item.link ? normalizeExternalUrl(item.link) : null;
+            return (
+              <Entry
+                key={item.id}
+                styles={S}
+                isFirst={idx === 0}
+                title={item.title}
+                titleStyle={S.projectTitle}
+                extraLeft={projectLink ? (
+                  <View style={{ marginTop: 2 }}>
+                    <Link src={projectLink} style={S.link}>↗ {item.link}</Link>
+                  </View>
+                ) : item.link ? (
+                  <View style={{ marginTop: 2 }}><Text style={S.caption}>{item.link}</Text></View>
+                ) : null}
+                rightTop={item.technologies?.length > 0 ? item.technologies.join(", ") : undefined}
+                rightTopStyle={S.metaMediumItalic}
+              >
+                {item.bullets && item.bullets.length > 0 && (
+                  <Bullets items={item.bullets} styles={S} />
+                )}
+              </Entry>
+            );
+          })}
         </Section>
       );
     }
@@ -741,24 +754,95 @@ function PDFSectionRenderer({
 // Main Document Component
 // ============================================================
 
+// ============================================================
+// Contact Icons — SVG icons for PDF header
+// Mirrors the icon rendering in ResumePage.tsx (browser preview)
+// but uses @react-pdf/renderer SVG components instead of
+// lucide-react or react-icons.
+// ============================================================
+
+function getContactIconType(item: ContactItem): string {
+  switch (item.type) {
+    case "email": return "mail";
+    case "phone": return "phone";
+    case "location": return "location";
+    case "link": {
+      if (!item.platformLabel) return "globe";
+      const lower = item.platformLabel.toLowerCase();
+      if (lower === "github") return "github";
+      if (lower === "linkedin") return "linkedin";
+      return "globe";
+    }
+    default: return "globe";
+  }
+}
+
+function ContactIconPdf({ iconType, size = 9 }: { iconType: string; size?: number }) {
+  const strokeColor = COLORS.textSecondary;
+  const sw = 1.8;
+
+  switch (iconType) {
+    case "mail":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Rect x="2" y="4" width="20" height="16" rx="2" fill="none" stroke={strokeColor} strokeWidth={sw} />
+          <Path d="M22 4L12 13L2 4" fill="none" stroke={strokeColor} strokeWidth={sw} />
+        </Svg>
+      );
+    case "phone":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path
+            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={sw}
+          />
+        </Svg>
+      );
+    case "location":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" fill="none" stroke={strokeColor} strokeWidth={sw} />
+          <Circle cx="12" cy="10" r="3" fill="none" stroke={strokeColor} strokeWidth={sw} />
+        </Svg>
+      );
+    case "github":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Path
+            d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.338c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"
+            fill={strokeColor}
+          />
+        </Svg>
+      );
+    case "linkedin":
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Rect x="2" y="2" width="20" height="20" rx="2" ry="2" fill="none" stroke={strokeColor} strokeWidth={sw} />
+          <Path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z" fill="none" stroke={strokeColor} strokeWidth={sw} />
+          <Rect x="2" y="9" width="4" height="12" fill="none" stroke={strokeColor} strokeWidth={sw} />
+          <Circle cx="4" cy="4" r="2" fill="none" stroke={strokeColor} strokeWidth={sw} />
+        </Svg>
+      );
+    case "globe":
+    default:
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24">
+          <Circle cx="12" cy="12" r="10" fill="none" stroke={strokeColor} strokeWidth={sw} />
+          <Path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" fill="none" stroke={strokeColor} strokeWidth={sw} />
+        </Svg>
+      );
+  }
+}
+
 export const ResumePDFDocument = ({ resume }: { resume: Resume }) => {
   const L = getResumeLayout(resume);
   const T = getTemplateStyles(resume.template);
   const S = buildStyles(L, T);
 
   const profile = resume.profile;
-
-  const contactInfo: { label: string; href?: string }[] = [
-    profile.email && { label: profile.email, href: normalizeEmail(profile.email) },
-    profile.phone && { label: profile.phone },
-    profile.location && { label: profile.location },
-    ...(profile.links || [])
-      .map((link) => {
-        const href = normalizeUrl(link.url);
-        return href ? { label: link.label || link.url, href } : null;
-      })
-      .filter(Boolean),
-  ].filter(Boolean) as { label: string; href?: string }[];
+  const contactItems = buildContactItems(profile);
 
   // Render sections in order defined by sectionOrder
   const sectionsToRender = (resume.sectionOrder || []).filter((section) =>
@@ -776,20 +860,26 @@ export const ResumePDFDocument = ({ resume }: { resume: Resume }) => {
           {!!profile.title?.trim() && (
             <Text style={S.professionalTitle}>{profile.title}</Text>
           )}
-          {contactInfo.length > 0 && (
+          {contactItems.length > 0 && (
             <View style={S.contactRow}>
-              {contactInfo.map((info, idx) => (
-                <React.Fragment key={idx}>
-                  {idx > 0 && <Text style={S.contactSep}>|</Text>}
-                  {info.href ? (
-                    <Link src={info.href} style={S.link}>
-                      {info.label}
-                    </Link>
-                  ) : (
-                    <Text style={S.metadata}>{info.label}</Text>
-                  )}
-                </React.Fragment>
-              ))}
+              {contactItems.map((item, idx) => {
+                const iconType = getContactIconType(item);
+                return (
+                  <React.Fragment key={idx}>
+                    {idx > 0 && <Text style={S.contactSep}>|</Text>}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                      <ContactIconPdf iconType={iconType} size={9} />
+                      {item.href ? (
+                        <Link src={item.href} style={S.link}>
+                          {item.label}
+                        </Link>
+                      ) : (
+                        <Text style={S.metadata}>{item.label}</Text>
+                      )}
+                    </View>
+                  </React.Fragment>
+                );
+              })}
             </View>
           )}
         </View>

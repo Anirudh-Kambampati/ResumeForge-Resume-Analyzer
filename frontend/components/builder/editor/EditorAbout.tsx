@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Resume, ResumeLink } from "@/types/resume";
 import {
   Plus,
@@ -12,6 +12,9 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { normalizeError } from "@/lib/errorHelper";
+import { detectPlatform, extractUsername, normalizeUrl } from "@/lib/contactLinks";
+import ClearableInput from "@/components/ui/ClearableInput";
+import ClearableTextarea from "@/components/ui/ClearableTextarea";
 
 type Props = {
   resume: Resume;
@@ -19,19 +22,52 @@ type Props = {
 };
 
 const KNOWN_PLATFORMS = [
-  { label: "LinkedIn", placeholder: "linkedin.com/in/username" },
   { label: "GitHub", placeholder: "github.com/username" },
+  { label: "LinkedIn", placeholder: "linkedin.com/in/username" },
   { label: "Portfolio", placeholder: "yourwebsite.dev" },
-  { label: "X (Twitter)", placeholder: "x.com/username" },
-  { label: "LeetCode", placeholder: "leetcode.com/u/username" },
-  { label: "Codeforces", placeholder: "codeforces.com/profile/username" },
-  { label: "HackerRank", placeholder: "hackerrank.com/profile/username" },
 ];
 
 export default function EditorAbout({ resume, setResume }: Props) {
   const profile = resume.profile;
   const [showCustomLink, setShowCustomLink] = useState(false);
   const [customLinkLabel, setCustomLinkLabel] = useState("");
+
+  // Split links into known platforms vs custom links
+  const knownLabels = KNOWN_PLATFORMS.map((p) => p.label);
+
+  // Per-field local raw input values — store whatever the user types,
+  // without validation or normalization. This lets users freely clear a
+  // field without it snapping back to the stored value.
+  const [localLinkValues, setLocalLinkValues] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    const labels = KNOWN_PLATFORMS.map((p) => p.label);
+    for (const label of labels) {
+      const existing = profile.links?.find((l) => l.label === label);
+      initial[label] = existing?.url || "";
+    }
+    return initial;
+  });
+
+  // On mount, extract usernames from any existing links that lack them
+  useEffect(() => {
+    const links = profile.links || [];
+    let changed = false;
+    const updated = links.map((link) => {
+      if (!link.username && link.url) {
+        const href = normalizeUrl(link.url);
+        const platform = detectPlatform(href);
+        const username = platform ? extractUsername(href, platform) : "";
+        if (username) {
+          changed = true;
+          return { ...link, username };
+        }
+      }
+      return link;
+    });
+    if (changed) {
+      setLinks(updated);
+    }
+  }, []); // only run on mount
 
   // Summary AI improve state
   const [summaryLoading, setSummaryLoading] = useState(false);
@@ -54,13 +90,12 @@ export default function EditorAbout({ resume, setResume }: Props) {
     });
   }
 
-  // Split links into known platforms vs custom links
-  const knownLabels = KNOWN_PLATFORMS.map((p) => p.label);
   const knownLinks = knownLabels.map((label) => {
     const existing = profile.links?.find((l) => l.label === label);
     return {
       label,
       url: existing?.url || "",
+      username: existing?.username || "",
       platform: KNOWN_PLATFORMS.find((p) => p.label === label)!,
     };
   });
@@ -70,8 +105,12 @@ export default function EditorAbout({ resume, setResume }: Props) {
   function updateLink(label: string, url: string) {
     const others = (profile.links || []).filter((l) => l.label !== label);
     if (url.trim()) {
-      setLinks([...others, { label, url: url.trim() }]);
+      // Store raw URL directly. No validation while typing.
+      // Username extraction happens lazily in the preview rendering.
+      const link: ResumeLink = { label, url: url.trim() };
+      setLinks([...others, link]);
     } else {
+      // Empty URL = remove the link entirely
       setLinks(others);
     }
   }
@@ -151,39 +190,41 @@ export default function EditorAbout({ resume, setResume }: Props) {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-4">
         <Field
           label="Full Name"
           value={profile.fullName || ""}
           onChange={(v) => updateProfile("fullName", v)}
           placeholder="John Doe"
-          colSpan={2}
+          fullWidth
         />
         <Field
           label="Professional Title"
           value={profile.title || ""}
           onChange={(v) => updateProfile("title", v)}
           placeholder="Software Engineer"
-          colSpan={2}
+          fullWidth
         />
         <Field
           label="Email"
           value={profile.email || ""}
           onChange={(v) => updateProfile("email", v)}
           placeholder="john@example.com"
+          fullWidth
         />
         <Field
           label="Phone"
           value={profile.phone || ""}
           onChange={(v) => updateProfile("phone", v)}
           placeholder="+1 (555) 123-4567"
+          fullWidth
         />
         <Field
           label="Location"
           value={profile.location || ""}
           onChange={(v) => updateProfile("location", v)}
           placeholder="San Francisco, CA"
-          colSpan={2}
+          fullWidth
         />
       </div>
 
@@ -192,45 +233,103 @@ export default function EditorAbout({ resume, setResume }: Props) {
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-zinc-300">Links</h3>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          {knownLinks.map(({ label, url, platform }) => (
-            <div key={label} className="space-y-1.5">
-              <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                {label}
-              </label>
-              <input
-                type="text"
-                value={url}
-                onChange={(e) => updateLink(label, e.target.value)}
-                placeholder={platform.placeholder}
-                className="w-full rounded-lg border border-white/10 bg-[#141416] px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-          ))}
+        <div className="space-y-4">
+          {knownLinks.map(({ label, url, platform }) => {
+            const inputValue = localLinkValues[label] ?? url ?? "";
+            const hasValue = inputValue.trim().length > 0;
+            return (
+              <div key={label} className="space-y-1.5">
+                <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                  {label}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setLocalLinkValues((prev) => ({ ...prev, [label]: val }));
+                      updateLink(label, val);
+                    }}
+                    placeholder={platform.placeholder}
+                    className={`w-full rounded-lg border border-white/10 bg-[#141416] py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
+                      hasValue ? "pr-8 px-3" : "px-3"
+                    }`}
+                  />
+                  {hasValue && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocalLinkValues((prev) => ({ ...prev, [label]: "" }));
+                        updateLink(label, "");
+                      }}
+                      aria-label="Clear link"
+                      tabIndex={0}
+                      className="
+                        absolute right-1.5 top-1/2 -translate-y-1/2
+                        flex items-center justify-center
+                        w-5 h-5 rounded
+                        text-zinc-500 hover:text-red-400
+                        cursor-pointer
+                        transition-colors
+                      "
+                    >
+                      <span className="text-sm leading-none font-medium">&times;</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        {customLinks.map((link) => (
-          <div key={link.label} className="flex items-center gap-2">
-            <div className="flex-1 space-y-1.5">
-              <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                {link.label}
-              </label>
-              <input
-                type="text"
-                value={link.url || ""}
-                onChange={(e) => updateLink(link.label, e.target.value)}
-                placeholder="url..."
-                className="w-full rounded-lg border border-white/10 bg-[#141416] px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              />
+        {customLinks.map((link) => {
+          const hasValue = (link.url || "").trim().length > 0;
+          return (
+            <div key={link.label} className="flex items-center gap-2">
+              <div className="flex-1 space-y-1.5">
+                <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                  {link.label}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={link.url || ""}
+                    onChange={(e) => updateLink(link.label, e.target.value)}
+                    placeholder="url..."
+                    className={`w-full rounded-lg border border-white/10 bg-[#141416] py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
+                      hasValue ? "pr-8 px-3" : "px-3"
+                    }`}
+                  />
+                  {hasValue && (
+                    <button
+                      type="button"
+                      onClick={() => updateLink(link.label, "")}
+                      aria-label="Clear link"
+                      tabIndex={0}
+                      className="
+                        absolute right-1.5 top-1/2 -translate-y-1/2
+                        flex items-center justify-center
+                        w-5 h-5 rounded
+                        text-zinc-500 hover:text-red-400
+                        cursor-pointer
+                        transition-colors
+                      "
+                    >
+                      <span className="text-sm leading-none font-medium">&times;</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => removeCustomLink(link.label)}
+                className="mt-5 rounded-lg p-2 text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300"
+              >
+                <X size={14} />
+              </button>
             </div>
-            <button
-              onClick={() => removeCustomLink(link.label)}
-              className="mt-5 rounded-lg p-2 text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        ))}
+          );
+        })}
 
         {showCustomLink ? (
           <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-3">
@@ -302,12 +401,13 @@ export default function EditorAbout({ resume, setResume }: Props) {
                   {summaryText.length} characters
                 </span>
               </div>
-              <textarea
+              <ClearableTextarea
                 value={summaryText}
                 onChange={(e) => updateSummary(e.target.value)}
+                onClear={() => updateSummary("")}
                 placeholder="e.g. Senior Software Engineer with 5+ years of experience..."
                 rows={5}
-                className="w-full rounded-xl border border-white/10 bg-[#141416] px-4 py-3 text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 resize-y text-sm leading-relaxed"
+                className="rounded-xl resize-y text-sm leading-relaxed px-4 py-3"
               />
             </div>
 
@@ -397,25 +497,24 @@ function Field({
   value,
   onChange,
   placeholder,
-  colSpan,
+  fullWidth,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
-  colSpan?: number;
+  fullWidth?: boolean;
 }) {
   return (
-    <div className={`space-y-1.5 ${colSpan === 2 ? "col-span-2" : ""}`}>
+    <div className="space-y-1.5">
       <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
         {label}
       </label>
-      <input
-        type="text"
+      <ClearableInput
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onClear={() => onChange("")}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-white/10 bg-[#141416] px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
       />
     </div>
   );

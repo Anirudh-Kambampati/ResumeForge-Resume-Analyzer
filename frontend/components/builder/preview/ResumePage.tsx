@@ -1,13 +1,15 @@
 "use client";
 
+import React from "react";
 import { Resume } from "@/types/resume";
 import { BuilderSection } from "@/store/resumeStore";
 import { Inter } from "next/font/google";
-import { normalizeEmail, normalizeUrl } from "@/lib/contactLinks";
+import { Mail, Phone, MapPin, Globe } from "lucide-react";
+import { FaGithub, FaLinkedin } from "react-icons/fa";
+import { normalizeExternalUrl, normalizeEmail, getLinkDisplay, buildContactItems, type ContactItem } from "@/lib/contactLinks";
 import { getResumeLayout } from "@/lib/resumeLayout";
 import { hasSectionData } from "@/config/sections";
 import { getTemplateStyles } from "@/config/templates";
-
 const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -19,7 +21,54 @@ type Props = {
   selectedSection: BuilderSection;
 };
 
+// ============================================================
+// Icon mapping for contact items.
+// Used in the header contact row to show a recognizable icon
+// beside each email, phone, location, and link.
+// Icons are decorative (aria-hidden) and ATS-friendly.
+// ============================================================
 
+function ContactIcon({ icon }: { icon?: string }) {
+  if (!icon) return null;
+  const size = 14;
+  const cls = "inline-block shrink-0 text-neutral-500";
+  switch (icon) {
+    case "mail":
+      return <Mail size={size} className={cls} aria-hidden="true" />;
+    case "phone":
+      return <Phone size={size} className={cls} aria-hidden="true" />;
+    case "location":
+      return <MapPin size={size} className={cls} aria-hidden="true" />;
+    case "github":
+      return <FaGithub size={size} className={cls} aria-hidden="true" />;
+    case "linkedin":
+      return <FaLinkedin size={size} className={cls} aria-hidden="true" />;
+    case "globe":
+      return <Globe size={size} className={cls} aria-hidden="true" />;
+    default:
+      return null;
+  }
+}
+
+function getContactIcon(item: ContactItem): string | undefined {
+  switch (item.type) {
+    case "email":
+      return "mail";
+    case "phone":
+      return "phone";
+    case "location":
+      return "location";
+    case "link": {
+      if (!item.platformLabel) return "globe";
+      const lower = item.platformLabel.toLowerCase();
+      if (lower === "github") return "github";
+      if (lower === "linkedin") return "linkedin";
+      return "globe";
+    }
+    default:
+      return undefined;
+  }
+}
 
 export default function ResumePage({
   resume,
@@ -36,17 +85,7 @@ export default function ResumePage({
   const cssPx = (v: number) => `${Math.round(v * 1.333)}px`;
 
   const profile = resume.profile || {};
-  const links = profile.links || [];
-
-  const contactInfo = [
-    profile.email && { label: profile.email, href: normalizeEmail(profile.email) },
-    profile.phone && { label: profile.phone },
-    profile.location && { label: profile.location },
-    ...links.map((link) => {
-      const href = normalizeUrl(link.url);
-      return href ? { label: link.label || link.url, href } : null;
-    }),
-  ].filter(Boolean) as { label: string; href?: string }[];
+  const contactItems = buildContactItems(profile);
 
   const T = getTemplateStyles(resume.template);
 
@@ -179,7 +218,23 @@ export default function ResumePage({
                   <div className="flex justify-between font-sans" style={{ fontSize: pt(L.entryTitleFontSize), lineHeight: String(L.entryTitleLineHeight) }}>
                     <div>
                       <span style={{ fontSize: pt(L.entrySubtitleFontSize), fontWeight: T.entryTitleFontWeight, color: "#171717" }}>{project.title}</span>
-                      {project.link && <span className="text-neutral-500 ml-2 select-all font-mono" style={{ fontSize: pt(L.entryMetaFontSize) }}>({project.link})</span>}
+                      {project.link && (() => {
+                        const projectHref = normalizeExternalUrl(project.link);
+                        return projectHref ? (
+                          <a
+                            href={projectHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 ml-2 hover:text-blue-800 transition-colors font-sans"
+                            style={{ fontSize: pt(L.entryMetaFontSize) }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="hover:underline">↗ {project.link}</span>
+                          </a>
+                        ) : (
+                          <span className="text-neutral-500 ml-2 select-all font-mono" style={{ fontSize: pt(L.entryMetaFontSize) }}>{project.link}</span>
+                        );
+                      })()}
                     </div>
                     {project.technologies && project.technologies.length > 0 && (
                       <div className="text-neutral-500 italic font-medium" style={{ fontSize: pt(L.entryMetaFontSize) }}>
@@ -435,17 +490,29 @@ export default function ResumePage({
           >
             {profile.title || "Professional Title"}
           </p>
-          {contactInfo.length > 0 && (
+          {contactItems.length > 0 && (
             <div
               className="flex flex-wrap justify-center items-center text-neutral-700 font-sans"
               style={{ marginTop: pt(L.skillsMarginTop), fontSize: pt(L.contactFontSize), gap: cssPx(L.contactRowGap) }}
             >
-              {contactInfo.map((info, idx) => (
-                <span key={idx} className="flex items-center">
-                  {idx > 0 && <span className="mr-[0.5em] text-neutral-400 select-none">|</span>}
-                  {info.href ? <a href={info.href}>{info.label}</a> : info.label}
-                </span>
-              ))}
+              {contactItems.map((item, idx) => {
+                const iconKey = getContactIcon(item);
+                return (
+                  <React.Fragment key={idx}>
+                    {idx > 0 && <span className="text-neutral-400 select-none mx-1">|</span>}
+                    <span className="inline-flex items-center gap-1.5">
+                      {iconKey && <ContactIcon icon={iconKey} />}
+                      {item.href ? (
+                        <a href={item.href} className="hover:underline" target="_blank" rel="noopener noreferrer">
+                          {item.label}
+                        </a>
+                      ) : (
+                        <span>{item.label}</span>
+                      )}
+                    </span>
+                  </React.Fragment>
+                );
+              })}
             </div>
           )}
         </header>

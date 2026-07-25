@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Resume, Certification } from "@/types/resume";
 import { Plus, Trash, ChevronDown, ChevronUp } from "lucide-react";
+import ClearableInput from "@/components/ui/ClearableInput";
 
 type Props = {
   resume: Resume;
@@ -163,22 +164,20 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-zinc-400">Certification Title</label>
-                        <input
-                          type="text"
+                        <ClearableInput
                           value={cert.title}
                           onChange={(e) => updateField(cert.id, "title", e.target.value)}
+                          onClear={() => updateField(cert.id, "title", "")}
                           placeholder="e.g. AWS Certified Solutions Architect"
-                          className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                         />
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-zinc-400">Issuer</label>
-                        <input
-                          type="text"
+                        <ClearableInput
                           value={cert.issuer}
                           onChange={(e) => updateField(cert.id, "issuer", e.target.value)}
+                          onClear={() => updateField(cert.id, "issuer", "")}
                           placeholder="e.g. Amazon Web Services"
-                          className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                         />
                       </div>
                     </div>
@@ -186,22 +185,20 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-zinc-400">Date Issued</label>
-                        <input
-                          type="text"
+                        <ClearableInput
                           value={cert.date}
                           onChange={(e) => updateField(cert.id, "date", e.target.value)}
+                          onClear={() => updateField(cert.id, "date", "")}
                           placeholder="e.g. 2024"
-                          className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                         />
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-zinc-400">Credential ID (Optional)</label>
-                        <input
-                          type="text"
+                        <ClearableInput
                           value={cert.credentialId || ""}
                           onChange={(e) => updateField(cert.id, "credentialId", e.target.value)}
+                          onClear={() => updateField(cert.id, "credentialId", "")}
                           placeholder="e.g. AWS-12345"
-                          className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                         />
                       </div>
                     </div>

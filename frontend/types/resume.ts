@@ -64,6 +64,7 @@ export interface Profile {
 export interface ResumeLink {
   label: string;
   url: string;
+  username?: string;
 }
 
 export interface Summary extends BaseSection {

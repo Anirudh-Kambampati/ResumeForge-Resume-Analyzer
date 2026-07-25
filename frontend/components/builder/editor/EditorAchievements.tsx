@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Resume, Achievement } from "@/types/resume";
 import { Plus, Trash, ChevronDown, ChevronUp, Sparkles, Check, X, AlertCircle } from "lucide-react";
 import { normalizeError } from "@/lib/errorHelper";
+import ClearableInput from "@/components/ui/ClearableInput";
+import ClearableTextarea from "@/components/ui/ClearableTextarea";
 
 type Props = {
   resume: Resume;
@@ -208,37 +210,24 @@ export default function EditorAchievements({ resume, setResume }: Props) {
                 <div className="border-t border-white/10 p-5 space-y-4 bg-black/20">
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-zinc-400">Achievement Title</label>
-                    <input
-                      type="text"
+                    <ClearableInput
                       value={ach.title}
                       onChange={(e) => updateField(ach.id, "title", e.target.value)}
+                      onClear={() => updateField(ach.id, "title", "")}
                       placeholder="e.g. Winner - National Hackathon"
-                      className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                     />
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-zinc-400">Description</label>
                     <div className="flex gap-2">
-                      <textarea
+                      <ClearableTextarea
                         value={ach.description}
                         onChange={(e) => updateField(ach.id, "description", e.target.value)}
+                        onClear={() => updateField(ach.id, "description", "")}
                         placeholder="e.g. Won first place among 250+ teams for building an AI productivity platform."
                         rows={3}
-                        className="
-                          w-full
-                          rounded-lg
-                          border
-                          border-white/10
-                          bg-[#0C0C0E]
-                          px-3
-                          py-2
-                          text-sm
-                          text-white
-                          focus:border-blue-500
-                          outline-none
-                          resize-y
-                        "
+                        className="resize-y"
                       />
                       <div className="flex flex-col gap-1.5 justify-start">
                         <button

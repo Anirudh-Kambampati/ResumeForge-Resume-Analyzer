@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Resume, Language } from "@/types/resume";
 import { Plus, Trash, ChevronDown, ChevronUp } from "lucide-react";
+import ClearableInput from "@/components/ui/ClearableInput";
 
 type Props = {
   resume: Resume;
@@ -174,22 +175,20 @@ export default function EditorLanguages({ resume, setResume }: Props) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Language Name</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={lang.name}
                         onChange={(e) => updateField(lang.id, "name", e.target.value)}
+                        onClear={() => updateField(lang.id, "name", "")}
                         placeholder="e.g. English, Spanish, Japanese"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Proficiency</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={lang.proficiency}
                         onChange={(e) => updateField(lang.id, "proficiency", e.target.value)}
+                        onClear={() => updateField(lang.id, "proficiency", "")}
                         placeholder="e.g. Native, Fluent, Conversational, Basic"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                   </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Resume, Education } from "@/types/resume";
 import { Plus, Trash, ChevronDown, ChevronUp } from "lucide-react";
+import ClearableInput from "@/components/ui/ClearableInput";
 
 type Props = {
   resume: Resume;
@@ -164,22 +165,20 @@ export default function EditorEducation({ resume, setResume }: Props) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Institution / School</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={edu.institution}
                         onChange={(e) => updateField(edu.id, "institution", e.target.value)}
+                        onClear={() => updateField(edu.id, "institution", "")}
                         placeholder="e.g. Stanford University"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Degree</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={edu.degree}
                         onChange={(e) => updateField(edu.id, "degree", e.target.value)}
+                        onClear={() => updateField(edu.id, "degree", "")}
                         placeholder="e.g. Bachelor of Science"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                   </div>
@@ -187,22 +186,20 @@ export default function EditorEducation({ resume, setResume }: Props) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Field of Study</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={edu.field}
                         onChange={(e) => updateField(edu.id, "field", e.target.value)}
+                        onClear={() => updateField(edu.id, "field", "")}
                         placeholder="e.g. Computer Science"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Grade / GPA / Score</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={edu.grade}
                         onChange={(e) => updateField(edu.id, "grade", e.target.value)}
+                        onClear={() => updateField(edu.id, "grade", "")}
                         placeholder="e.g. 3.9 GPA or 90%"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                   </div>
@@ -210,22 +207,20 @@ export default function EditorEducation({ resume, setResume }: Props) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Start Date / Year</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={edu.startDate}
                         onChange={(e) => updateField(edu.id, "startDate", e.target.value)}
+                        onClear={() => updateField(edu.id, "startDate", "")}
                         placeholder="e.g. 2016"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">End Date / Year</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={edu.endDate}
                         onChange={(e) => updateField(edu.id, "endDate", e.target.value)}
+                        onClear={() => updateField(edu.id, "endDate", "")}
                         placeholder="e.g. 2020"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                   </div>

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Resume, Project } from "@/types/resume";
 import { Plus, Trash, ChevronDown, ChevronUp, Sparkles, Check, X, AlertCircle } from "lucide-react";
 import { normalizeError } from "@/lib/errorHelper";
+import ClearableInput from "@/components/ui/ClearableInput";
+import ClearableTextarea from "@/components/ui/ClearableTextarea";
 
 type Props = {
   resume: Resume;
@@ -275,34 +277,54 @@ export default function EditorProjects({ resume, setResume }: Props) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Project Title</label>
-                      <input
-                        type="text"
+                      <ClearableInput
                         value={project.title}
                         onChange={(e) => updateField(project.id, "title", e.target.value)}
+                        onClear={() => updateField(project.id, "title", "")}
                         placeholder="e.g. ResumeForge"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">Project Link (Optional)</label>
-                      <input
-                        type="text"
-                        value={project.link || ""}
-                        onChange={(e) => updateField(project.id, "link", e.target.value)}
-                        placeholder="e.g. https://resumeforge.dev"
-                        className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={project.link || ""}
+                          onChange={(e) => updateField(project.id, "link", e.target.value)}
+                          placeholder="e.g. https://resumeforge.dev"
+                          className={`w-full rounded-lg border border-white/10 bg-[#0C0C0E] py-2 text-sm text-white focus:border-blue-500 outline-none ${
+                            project.link ? "pr-8 px-3" : "px-3"
+                          }`}
+                        />
+                        {project.link && (
+                          <button
+                            type="button"
+                            onClick={() => updateField(project.id, "link", "")}
+                            aria-label="Clear link"
+                            tabIndex={0}
+                            className="
+                              absolute right-1.5 top-1/2 -translate-y-1/2
+                              flex items-center justify-center
+                              w-5 h-5 rounded
+                              text-zinc-500 hover:text-red-400
+                              cursor-pointer
+                              transition-colors
+                            "
+                          >
+                            <span className="text-sm leading-none font-medium">&times;</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-zinc-400">Technologies (Comma-separated)</label>
-                    <input
-                      type="text"
+                    <ClearableInput
                       value={getTechText(project)}
                       onChange={(e) => handleTechChange(project.id, e.target.value)}
+                      onClear={() => handleTechChange(project.id, "")}
                       placeholder="e.g. Next.js, FastAPI, PostgreSQL, Tailwind"
-                      className="w-full rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                     />
                   </div>
 
@@ -344,25 +366,13 @@ export default function EditorProjects({ resume, setResume }: Props) {
                           <div key={bulletIdx} className="space-y-2">
                             <div className="flex gap-2">
                               <span className="text-zinc-500 text-sm mt-2.5 font-bold">&bull;</span>
-                              <textarea
+                              <ClearableTextarea
                                 value={bullet}
                                 onChange={(e) => updateBullet(project.id, bulletIdx, e.target.value)}
+                                onClear={() => updateBullet(project.id, bulletIdx, "")}
                                 placeholder="e.g. Integrated OpenRouter API to evaluate resume compliance"
                                 rows={2}
-                                className="
-                                  flex-1
-                                  rounded-lg
-                                  border
-                                  border-white/10
-                                  bg-[#0C0C0E]
-                                  px-3
-                                  py-2
-                                  text-sm
-                                  text-white
-                                  focus:border-blue-500
-                                  outline-none
-                                  resize-none
-                                "
+                                className="flex-1 resize-none"
                               />
                               <div className="flex flex-col gap-1.5 justify-center">
                                 <button

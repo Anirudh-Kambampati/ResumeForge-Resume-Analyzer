@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Resume, SkillCategory } from "@/types/resume";
 import { Plus, Trash } from "lucide-react";
+import ClearableInput from "@/components/ui/ClearableInput";
+import ClearableTextarea from "@/components/ui/ClearableTextarea";
 
 type Props = {
   resume: Resume;
@@ -101,26 +103,12 @@ export default function EditorSkills({ resume, setResume }: Props) {
             "
           >
             <div className="flex items-center justify-between gap-3">
-              <input
-                type="text"
+              <ClearableInput
                 value={category.title}
                 onChange={(e) => updateCategoryTitle(category.id, e.target.value)}
+                onClear={() => updateCategoryTitle(category.id, "")}
                 placeholder="Category Title (e.g. Languages)"
-                className="
-                  bg-transparent
-                  border-none
-                  text-lg
-                  font-medium
-                  text-white
-                  focus:ring-0
-                  outline-none
-                  w-1/2
-                  border-b
-                  border-dashed
-                  border-white/10
-                  focus:border-blue-500
-                  pb-0.5
-                "
+                className="bg-transparent border-none text-lg font-medium text-white w-1/2 border-b border-dashed border-white/10 focus:border-blue-500 pb-0.5"
               />
               <button
                 onClick={() => removeCategory(category.id)}
@@ -139,25 +127,13 @@ export default function EditorSkills({ resume, setResume }: Props) {
 
             <div className="space-y-1">
               <label className="text-xs font-semibold text-zinc-500">Skills (Comma-separated)</label>
-              <textarea
+              <ClearableTextarea
                 value={getSkillText(category)}
                 onChange={(e) => handleItemsChange(category.id, e.target.value)}
+                onClear={() => handleItemsChange(category.id, "")}
                 placeholder="e.g. React, Next.js, Vue, Angular"
                 rows={2}
-                className="
-                  w-full
-                  rounded-lg
-                  border
-                  border-white/10
-                  bg-[#0C0C0E]
-                  px-3
-                  py-2
-                  text-sm
-                  text-white
-                  focus:border-blue-500
-                  outline-none
-                  resize-none
-                "
+                className="resize-none"
               />
             </div>
           </div>
