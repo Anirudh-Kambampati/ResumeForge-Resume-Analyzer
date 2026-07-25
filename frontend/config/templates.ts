@@ -72,15 +72,15 @@ export const TEMPLATE_STYLES: Record<TemplateId, TemplateStyles> = {
   ats: {
     nameFontWeight: 700,
     nameSizeMultiplier: 1.0,
-    titleFontWeight: 600,
-    titleLetterSpacing: 1.5,
+    titleFontWeight: 500,
+    titleLetterSpacing: 0.0,
     sectionHeaderFontWeight: 700,
-    sectionHeaderLetterSpacing: 1.2,
-    sectionHeaderBorderWidth: 1,
+    sectionHeaderLetterSpacing: 0.0,
+    sectionHeaderBorderWidth: 0.75,
     sectionHeaderTransform: "uppercase",
     sectionHeaderBorderStyle: "solid",
     entryTitleFontWeight: 600,
-    entrySubtitleFontWeight: 600,
+    entrySubtitleFontWeight: 400,
   },
 
   // ============================================================

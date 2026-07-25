@@ -4,9 +4,7 @@ import React from "react";
 import { Resume } from "@/types/resume";
 import { BuilderSection } from "@/store/resumeStore";
 import { Inter } from "next/font/google";
-import { Mail, Phone, MapPin, Globe } from "lucide-react";
-import { FaGithub, FaLinkedin } from "react-icons/fa";
-import { normalizeExternalUrl, normalizeEmail, getLinkDisplay, buildContactItems, type ContactItem } from "@/lib/contactLinks";
+import { normalizeExternalUrl, buildATSContactLine } from "@/lib/contactLinks";
 import { getResumeLayout } from "@/lib/resumeLayout";
 import { hasSectionData } from "@/config/sections";
 import { getTemplateStyles } from "@/config/templates";
@@ -20,55 +18,6 @@ type Props = {
   resume: Resume;
   selectedSection: BuilderSection;
 };
-
-// ============================================================
-// Icon mapping for contact items.
-// Used in the header contact row to show a recognizable icon
-// beside each email, phone, location, and link.
-// Icons are decorative (aria-hidden) and ATS-friendly.
-// ============================================================
-
-function ContactIcon({ icon }: { icon?: string }) {
-  if (!icon) return null;
-  const size = 14;
-  const cls = "inline-block shrink-0 text-neutral-500";
-  switch (icon) {
-    case "mail":
-      return <Mail size={size} className={cls} aria-hidden="true" />;
-    case "phone":
-      return <Phone size={size} className={cls} aria-hidden="true" />;
-    case "location":
-      return <MapPin size={size} className={cls} aria-hidden="true" />;
-    case "github":
-      return <FaGithub size={size} className={cls} aria-hidden="true" />;
-    case "linkedin":
-      return <FaLinkedin size={size} className={cls} aria-hidden="true" />;
-    case "globe":
-      return <Globe size={size} className={cls} aria-hidden="true" />;
-    default:
-      return null;
-  }
-}
-
-function getContactIcon(item: ContactItem): string | undefined {
-  switch (item.type) {
-    case "email":
-      return "mail";
-    case "phone":
-      return "phone";
-    case "location":
-      return "location";
-    case "link": {
-      if (!item.platformLabel) return "globe";
-      const lower = item.platformLabel.toLowerCase();
-      if (lower === "github") return "github";
-      if (lower === "linkedin") return "linkedin";
-      return "globe";
-    }
-    default:
-      return undefined;
-  }
-}
 
 export default function ResumePage({
   resume,
@@ -85,7 +34,7 @@ export default function ResumePage({
   const cssPx = (v: number) => `${Math.round(v * 1.333)}px`;
 
   const profile = resume.profile || {};
-  const contactItems = buildContactItems(profile);
+  const atsContact = buildATSContactLine(profile);
 
   const T = getTemplateStyles(resume.template);
 
@@ -93,15 +42,17 @@ export default function ResumePage({
     const textTransform = T.sectionHeaderTransform === "uppercase" ? "uppercase" : "none";
     return (
       <h2
-        className={`border-b-2 border-neutral-800 tracking-wider text-neutral-900`}
+        className={`text-neutral-900`}
         style={{
           fontSize: pt(L.sectionHeaderFontSize),
           fontWeight: T.sectionHeaderFontWeight,
           letterSpacing: T.sectionHeaderLetterSpacing,
           borderBottomWidth: T.sectionHeaderBorderWidth,
           borderBottomStyle: T.sectionHeaderBorderStyle as "solid" | "double",
+          borderBottomColor: "#262626",
           paddingBottom: pt(L.sectionHeaderPaddingBottom),
           marginBottom: pt(L.sectionHeaderMarginBottom),
+          marginTop: "0px",
           textTransform: textTransform as "uppercase" | "none",
         }}
       >
@@ -128,29 +79,28 @@ export default function ResumePage({
             <div>
               {enabled.map((job, idx) => (
                 <div key={job.id} style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}>
+                  {/* Title & Dates row */}
                   <div
-                    className="flex justify-between font-sans"
-                    style={{ fontSize: pt(L.entryTitleFontSize), lineHeight: String(L.entryTitleLineHeight) }}
+                    className="flex justify-between items-baseline font-sans"
+                    style={{ fontSize: pt(L.entrySubtitleFontSize), lineHeight: String(L.entryTitleLineHeight) }}
                   >
-                    <div>
-                      <span
-                        style={{
-                          fontSize: pt(L.entrySubtitleFontSize),
-                          fontWeight: T.entryTitleFontWeight,
-                          color: "#171717",
-                        }}
-                      >
-                        {job.role}
-                      </span>
-                      <span className="text-neutral-600" style={{ fontSize: pt(L.entryMetaFontSize) }}>
-                        {" "}&mdash;{" "}{job.company}
-                      </span>
-                    </div>
-                    <div className="text-neutral-500 font-medium text-right" style={{ fontSize: pt(L.entryMetaFontSize) }}>
-                      {job.location && <span>{job.location} | </span>}
-                      <span>{job.startDate} &ndash; {job.currentlyWorking ? "Present" : job.endDate}</span>
-                    </div>
+                    <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                      {job.role}
+                    </span>
+                    <span className="text-neutral-500 font-medium text-right whitespace-nowrap" style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px" }}>
+                      {job.startDate} &ndash; {job.currentlyWorking ? "Present" : job.endDate}
+                    </span>
                   </div>
+                  {/* Company & Location row */}
+                  <div
+                    className="flex justify-between items-baseline font-sans"
+                    style={{ fontSize: pt(L.entryMetaFontSize), lineHeight: "1.3", marginTop: "1px" }}
+                  >
+                    <span className="text-neutral-600">
+                      {job.company}{job.location ? `, ${job.location}` : ""}
+                    </span>
+                  </div>
+                  {/* Bullets */}
                   {job.bullets && job.bullets.length > 0 && (
                     <ul className="list-disc text-neutral-700 leading-normal" style={{ marginTop: pt(L.bulletListMarginTop), paddingLeft: pt(L.bulletListPaddingLeft) }}>
                       {job.bullets.filter((b) => b.trim()).map((bullet, bulletIdx) => (
@@ -178,23 +128,20 @@ export default function ResumePage({
             {sectionHeading("EDUCATION")}
             <div>
               {enabled.map((edu, idx) => (
-                <div key={edu.id} className="flex justify-between font-sans" style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px", fontSize: pt(L.entryTitleFontSize), lineHeight: String(L.entryTitleLineHeight) }}>
-                  <div>
-                    <span
-                      style={{
-                        fontSize: pt(L.entrySubtitleFontSize),
-                        fontWeight: T.entryTitleFontWeight,
-                        color: "#171717",
-                      }}
-                    >
-                      {edu.degree}
+                <div key={edu.id} style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}>
+                  {/* Degree & Dates row */}
+                  <div className="flex justify-between items-baseline font-sans" style={{ fontSize: pt(L.entrySubtitleFontSize), lineHeight: String(L.entryTitleLineHeight) }}>
+                    <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                      {edu.degree}{edu.field ? ` in ${edu.field}` : ""}
                     </span>
-                    {edu.field && <span className="text-neutral-600" style={{ fontSize: pt(L.entryMetaFontSize) }}> in {edu.field}</span>}
-                    <div className="text-neutral-600" style={{ fontSize: pt(L.entryMetaFontSize) }}>{edu.institution}</div>
-                    {edu.grade && <div className="italic text-neutral-500" style={{ fontSize: pt(L.entryMetaFontSize) }}>GPA: {edu.grade}</div>}
+                    <span className="text-neutral-500 font-medium text-right whitespace-nowrap" style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px" }}>
+                      {edu.startDate} &ndash; {edu.endDate}
+                    </span>
                   </div>
-                  <div className="text-right text-neutral-500 font-medium font-sans" style={{ fontSize: pt(L.entryMetaFontSize) }}>
-                    <div>{edu.startDate} &ndash; {edu.endDate}</div>
+                  {/* Institution & GPA */}
+                  <div className="font-sans" style={{ fontSize: pt(L.entryMetaFontSize), lineHeight: "1.3", marginTop: "1px" }}>
+                    <span className="text-neutral-600">{edu.institution}</span>
+                    {edu.grade && <span className="text-neutral-500"> &mdash; GPA: {edu.grade}</span>}
                   </div>
                 </div>
               ))}
@@ -215,31 +162,26 @@ export default function ResumePage({
             <div>
               {enabled.map((project, idx) => (
                 <div key={project.id} style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}>
-                  <div className="flex justify-between font-sans" style={{ fontSize: pt(L.entryTitleFontSize), lineHeight: String(L.entryTitleLineHeight) }}>
-                    <div>
-                      <span style={{ fontSize: pt(L.entrySubtitleFontSize), fontWeight: T.entryTitleFontWeight, color: "#171717" }}>{project.title}</span>
-                      {project.link && (() => {
-                        const projectHref = normalizeExternalUrl(project.link);
-                        return projectHref ? (
-                          <a
-                            href={projectHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 ml-2 hover:text-blue-800 transition-colors font-sans"
-                            style={{ fontSize: pt(L.entryMetaFontSize) }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span className="hover:underline">↗ {project.link}</span>
-                          </a>
-                        ) : (
-                          <span className="text-neutral-500 ml-2 select-all font-mono" style={{ fontSize: pt(L.entryMetaFontSize) }}>{project.link}</span>
-                        );
-                      })()}
-                    </div>
-                    {project.technologies && project.technologies.length > 0 && (
-                      <div className="text-neutral-500 italic font-medium" style={{ fontSize: pt(L.entryMetaFontSize) }}>
-                        {project.technologies.join(", ")}
-                      </div>
+                  {/* Project title + technologies + link row */}
+                  <div className="flex justify-between items-baseline font-sans" style={{ fontSize: pt(L.entrySubtitleFontSize), lineHeight: String(L.entryTitleLineHeight) }}>
+                    <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                      {project.title}
+                      {project.technologies && project.technologies.length > 0 && (
+                        <span className="text-neutral-600" style={{ fontWeight: 400, fontSize: pt(L.entryMetaFontSize) }}>
+                          {" | "}{project.technologies.join(", ")}
+                        </span>
+                      )}
+                    </span>
+                    {project.link && (
+                      <a
+                        href={normalizeExternalUrl(project.link) || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-neutral-500 hover:text-neutral-800 transition-colors font-sans"
+                        style={{ fontSize: pt(L.entryMetaFontSize - 0.5), marginLeft: "6px" }}
+                      >
+                        {project.link}
+                      </a>
                     )}
                   </div>
                   {project.bullets && project.bullets.length > 0 && (
@@ -470,46 +412,44 @@ export default function ResumePage({
           style={{ paddingBottom: pt(L.headerPaddingBottom) }}
         >
           <h1
-            className="tracking-tight text-neutral-900 uppercase"
+            className="tracking-tight text-neutral-900"
             style={{
               fontSize: pt(L.nameFontSize * T.nameSizeMultiplier),
               fontWeight: T.nameFontWeight,
               lineHeight: String(L.nameLineHeight),
+              marginBottom: pt(L.nameMarginBottom),
             }}
           >
             {profile.fullName || "Your Full Name"}
           </h1>
           <p
-            className="tracking-wider text-neutral-600 uppercase"
+            className="text-neutral-700"
             style={{
               fontSize: pt(L.titleFontSize),
               fontWeight: T.titleFontWeight,
               letterSpacing: T.titleLetterSpacing,
               marginTop: pt(L.titleMarginTop),
+              marginBottom: pt(L.titleMarginBottom),
             }}
           >
             {profile.title || "Professional Title"}
           </p>
-          {contactItems.length > 0 && (
+          {atsContact.length > 0 && (
             <div
-              className="flex flex-wrap justify-center items-center text-neutral-700 font-sans"
-              style={{ marginTop: pt(L.skillsMarginTop), fontSize: pt(L.contactFontSize), gap: cssPx(L.contactRowGap) }}
+              className="flex flex-wrap justify-center items-center text-neutral-600 font-sans"
+              style={{ marginTop: pt(L.skillsMarginTop), fontSize: pt(L.contactFontSize) }}
             >
-              {contactItems.map((item, idx) => {
-                const iconKey = getContactIcon(item);
+              {atsContact.map((entry, idx) => {
                 return (
                   <React.Fragment key={idx}>
-                    {idx > 0 && <span className="text-neutral-400 select-none mx-1">|</span>}
-                    <span className="inline-flex items-center gap-1.5">
-                      {iconKey && <ContactIcon icon={iconKey} />}
-                      {item.href ? (
-                        <a href={item.href} className="hover:underline" target="_blank" rel="noopener noreferrer">
-                          {item.label}
-                        </a>
-                      ) : (
-                        <span>{item.label}</span>
-                      )}
-                    </span>
+                    {idx > 0 && <span className="text-neutral-300 select-none mx-1">|</span>}
+                    {entry.href ? (
+                      <a href={entry.href} className="hover:underline" target="_blank" rel="noopener noreferrer">
+                        {entry.display}
+                      </a>
+                    ) : (
+                      <span>{entry.display}</span>
+                    )}
                   </React.Fragment>
                 );
               })}

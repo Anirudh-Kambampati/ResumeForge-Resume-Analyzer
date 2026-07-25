@@ -201,8 +201,156 @@ export const KNOWN_PLATFORMS = Object.values(PLATFORM_CONFIGS).map((p) => ({
 }));
 
 // ============================================================
-// Build a complete contact row object for rendering
-// For each link, determine what to display and where to link.
+// ATS Contact Formatter — ordered, normalized, deduplicated
+//
+// Generates a contact line optimized for machine readability:
+//   Phone | Email | Location | LinkedIn | GitHub | Portfolio
+//
+// Every value is normalized before rendering.
+// Duplicates are detected and removed.
+// Empty values are filtered out.
+// ============================================================
+
+export interface ATSContactEntry {
+  /** The normalized display text (machine-readable) */
+  display: string;
+  /** Optional clickable URL (null for phone/location) */
+  href?: string;
+}
+
+/**
+ * Normalize a URL to a clean display string without protocol.
+ * Preserves the path/username portion.
+ */
+function normalizeLinkDisplay(href: string): string | null {
+  try {
+    const url = new URL(href);
+    const hostname = url.hostname.replace(/^www\./, "");
+    const path = url.pathname === "/" ? "" : url.pathname.replace(/\/$/, "");
+    return hostname + path;
+  } catch {
+    // Fallback: just strip protocol
+    return href.replace(/^https?:\/\//, "").replace(/^www\./, "");
+  }
+}
+
+/**
+ * Normalize LinkedIn URL to linkedin.com/in/username
+ */
+function normalizeLinkedIn(url: string): string | null {
+  const lower = url.toLowerCase();
+  const match = lower.match(/linkedin\.com\/(?:in|company|school)\/([^\/?#&]+)/i);
+  if (match) {
+    return `linkedin.com/in/${match[1]}`;
+  }
+  return null;
+}
+
+/**
+ * Normalize GitHub URL to github.com/username
+ */
+function normalizeGitHub(url: string): string | null {
+  const lower = url.toLowerCase();
+  const match = lower.match(/github\.com\/([^\/?#&\s]+)/i);
+  if (match) {
+    return `github.com/${match[1]}`;
+  }
+  return null;
+}
+
+/**
+ * Build an ordered, normalized, deduplicated contact line for ATS rendering.
+ *
+ * Order: Phone → Email → Location → LinkedIn → GitHub → Portfolio
+ *
+ * Each value is normalized before rendering:
+ *   - Email trimmed and lowercased
+ *   - LinkedIn → linkedin.com/in/username
+ *   - GitHub → github.com/username
+ *   - Portfolio → clean domain/path without protocol
+ *
+ * Duplicates are detected by comparing normalized values.
+ */
+export function buildATSContactLine(profile: {
+  email?: string;
+  phone?: string;
+  location?: string;
+  links?: { label: string; url: string; username?: string }[];
+}): ATSContactEntry[] {
+  const result: ATSContactEntry[] = [];
+  const seen = new Set<string>();
+
+  function add(display: string, href?: string) {
+    const key = display.toLowerCase().trim();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    result.push({ display: display.trim(), href });
+  }
+
+  // 1. Phone — preserve user value, trim whitespace
+  if (profile.phone?.trim()) {
+    add(profile.phone.trim());
+  }
+
+  // 2. Email — trim and lowercase for display
+  if (profile.email?.trim()) {
+    const email = profile.email.trim().toLowerCase();
+    add(email, `mailto:${email}`);
+  }
+
+  // 3. Location — preserve user value
+  if (profile.location?.trim()) {
+    add(profile.location.trim());
+  }
+
+  // 4–6. Links — detect platform, normalize display, deduplicate
+  const linkEntries: { display: string; href: string; sortKey: number }[] = [];
+
+  for (const link of profile.links || []) {
+    const href = normalizeExternalUrl(link.url);
+    if (!href) continue;
+
+    let display: string | null = null;
+    let sortKey = 99;
+
+    // Try LinkedIn
+    display = normalizeLinkedIn(href);
+    if (display) sortKey = 1;
+
+    // Try GitHub
+    if (!display) {
+      display = normalizeGitHub(href);
+      if (display) sortKey = 2;
+    }
+
+    // Fallback: generic portfolio link
+    if (!display) {
+      display = normalizeLinkDisplay(href);
+      if (display) sortKey = 3;
+    }
+
+    if (display) {
+      linkEntries.push({ display, href, sortKey });
+    }
+  }
+
+  // Sort: LinkedIn first, GitHub second, portfolio/other after
+  linkEntries.sort((a, b) => a.sortKey - b.sortKey);
+
+  // Deduplicate by normalized display
+  const linkSeen = new Set<string>();
+  for (const entry of linkEntries) {
+    const key = entry.display.toLowerCase();
+    if (linkSeen.has(key)) continue;
+    linkSeen.add(key);
+    add(entry.display, entry.href);
+  }
+
+  return result;
+}
+
+// ============================================================
+// Legacy buildContactItems — retained for backward compatibility
 // ============================================================
 
 export interface ContactItem {
@@ -210,7 +358,7 @@ export interface ContactItem {
   label: string;
   href?: string;
   icon?: string;
-  platformLabel?: string; // lucide icon name for link items
+  platformLabel?: string;
 }
 
 export function buildContactItems(profile: {
@@ -234,8 +382,6 @@ export function buildContactItems(profile: {
     const href = normalizeExternalUrl(link.url);
     if (href) {
       const platform = detectPlatform(href);
-      // Extract username from URL for display, even if the editor
-      // stored the raw URL without extracting a username.
       const displayLabel = link.username
         || (platform ? extractUsername(href, platform) : "")
         || getLinkDisplay(link);
