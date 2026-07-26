@@ -83,11 +83,13 @@ export default function EditorEducation({ resume, setResume }: Props) {
       </div>
 
       <div className="space-y-4">
-        {resume.education.map((edu) => {
-          const isExpanded = expandedId === edu.id;
+        {resume.education.map((edu, index) => {
+          const safeId = edu.id || `edu-${index}-${Date.now()}`;
+          const isExpanded = expandedId === safeId;
+          const isEnabled = typeof edu.enabled === "boolean" ? edu.enabled : true;
           return (
             <div
-              key={edu.id}
+              key={safeId}
               className="
                 rounded-xl
                 border
@@ -100,7 +102,7 @@ export default function EditorEducation({ resume, setResume }: Props) {
             >
               {/* Accordion Header */}
               <div
-                onClick={() => setExpandedId(isExpanded ? null : edu.id)}
+                onClick={() => setExpandedId(isExpanded ? null : safeId)}
                 className="
                   flex
                   items-center
@@ -114,10 +116,10 @@ export default function EditorEducation({ resume, setResume }: Props) {
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
-                    checked={edu.enabled}
+                    checked={isEnabled}
                     onChange={(e) => {
                       e.stopPropagation();
-                      updateField(edu.id, "enabled", e.target.checked);
+                      updateField(safeId, "enabled", e.target.checked);
                     }}
                     className="
                       h-4
@@ -142,7 +144,7 @@ export default function EditorEducation({ resume, setResume }: Props) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeEducation(edu.id);
+                      removeEducation(safeId);
                     }}
                     className="
                       p-1.5
@@ -167,8 +169,8 @@ export default function EditorEducation({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">Institution / School</label>
                       <ClearableInput
                         value={edu.institution}
-                        onChange={(e) => updateField(edu.id, "institution", e.target.value)}
-                        onClear={() => updateField(edu.id, "institution", "")}
+                        onChange={(e) => updateField(safeId, "institution", e.target.value)}
+                        onClear={() => updateField(safeId, "institution", "")}
                         placeholder="e.g. Stanford University"
                       />
                     </div>
@@ -176,8 +178,8 @@ export default function EditorEducation({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">Degree</label>
                       <ClearableInput
                         value={edu.degree}
-                        onChange={(e) => updateField(edu.id, "degree", e.target.value)}
-                        onClear={() => updateField(edu.id, "degree", "")}
+                        onChange={(e) => updateField(safeId, "degree", e.target.value)}
+                        onClear={() => updateField(safeId, "degree", "")}
                         placeholder="e.g. Bachelor of Science"
                       />
                     </div>
@@ -188,8 +190,8 @@ export default function EditorEducation({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">Field of Study</label>
                       <ClearableInput
                         value={edu.field}
-                        onChange={(e) => updateField(edu.id, "field", e.target.value)}
-                        onClear={() => updateField(edu.id, "field", "")}
+                        onChange={(e) => updateField(safeId, "field", e.target.value)}
+                        onClear={() => updateField(safeId, "field", "")}
                         placeholder="e.g. Computer Science"
                       />
                     </div>
@@ -197,8 +199,8 @@ export default function EditorEducation({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">Grade / GPA / Score</label>
                       <ClearableInput
                         value={edu.grade}
-                        onChange={(e) => updateField(edu.id, "grade", e.target.value)}
-                        onClear={() => updateField(edu.id, "grade", "")}
+                        onChange={(e) => updateField(safeId, "grade", e.target.value)}
+                        onClear={() => updateField(safeId, "grade", "")}
                         placeholder="e.g. 3.9 GPA or 90%"
                       />
                     </div>
@@ -209,8 +211,8 @@ export default function EditorEducation({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">Start Date / Year</label>
                       <ClearableInput
                         value={edu.startDate}
-                        onChange={(e) => updateField(edu.id, "startDate", e.target.value)}
-                        onClear={() => updateField(edu.id, "startDate", "")}
+                        onChange={(e) => updateField(safeId, "startDate", e.target.value)}
+                        onClear={() => updateField(safeId, "startDate", "")}
                         placeholder="e.g. 2016"
                       />
                     </div>
@@ -218,8 +220,8 @@ export default function EditorEducation({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">End Date / Year</label>
                       <ClearableInput
                         value={edu.endDate}
-                        onChange={(e) => updateField(edu.id, "endDate", e.target.value)}
-                        onClear={() => updateField(edu.id, "endDate", "")}
+                        onChange={(e) => updateField(safeId, "endDate", e.target.value)}
+                        onClear={() => updateField(safeId, "endDate", "")}
                         placeholder="e.g. 2020"
                       />
                     </div>

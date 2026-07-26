@@ -93,11 +93,13 @@ export default function EditorLanguages({ resume, setResume }: Props) {
             </button>
           </div>
         ) : (
-          languageList.map((lang) => {
-            const isExpanded = expandedId === lang.id;
+          languageList.map((lang, index) => {
+            const safeId = lang.id || `lang-${index}-${Date.now()}`;
+            const isExpanded = expandedId === safeId;
+            const isEnabled = typeof lang.enabled === "boolean" ? lang.enabled : true;
             return (
             <div
-              key={lang.id}
+              key={safeId}
               className="
                 rounded-xl
                 border
@@ -110,7 +112,7 @@ export default function EditorLanguages({ resume, setResume }: Props) {
             >
               {/* Accordion Header */}
               <div
-                onClick={() => setExpandedId(isExpanded ? null : lang.id)}
+                onClick={() => setExpandedId(isExpanded ? null : safeId)}
                 className="
                   flex
                   items-center
@@ -124,10 +126,10 @@ export default function EditorLanguages({ resume, setResume }: Props) {
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
-                    checked={lang.enabled}
+                    checked={isEnabled}
                     onChange={(e) => {
                       e.stopPropagation();
-                      updateField(lang.id, "enabled", e.target.checked);
+                      updateField(safeId, "enabled", e.target.checked);
                     }}
                     className="
                       h-4
@@ -152,7 +154,7 @@ export default function EditorLanguages({ resume, setResume }: Props) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeLanguage(lang.id);
+                      removeLanguage(safeId);
                     }}
                     className="
                       p-1.5
@@ -177,8 +179,8 @@ export default function EditorLanguages({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">Language Name</label>
                       <ClearableInput
                         value={lang.name}
-                        onChange={(e) => updateField(lang.id, "name", e.target.value)}
-                        onClear={() => updateField(lang.id, "name", "")}
+                        onChange={(e) => updateField(safeId, "name", e.target.value)}
+                        onClear={() => updateField(safeId, "name", "")}
                         placeholder="e.g. English, Spanish, Japanese"
                       />
                     </div>
@@ -186,8 +188,8 @@ export default function EditorLanguages({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">Proficiency</label>
                       <ClearableInput
                         value={lang.proficiency}
-                        onChange={(e) => updateField(lang.id, "proficiency", e.target.value)}
-                        onClear={() => updateField(lang.id, "proficiency", "")}
+                        onChange={(e) => updateField(safeId, "proficiency", e.target.value)}
+                        onClear={() => updateField(safeId, "proficiency", "")}
                         placeholder="e.g. Native, Fluent, Conversational, Basic"
                       />
                     </div>

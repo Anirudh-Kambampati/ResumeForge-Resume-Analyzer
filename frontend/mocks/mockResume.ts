@@ -13,7 +13,7 @@ export const mockResume: Resume = {
   profile: {
     fullName: "John Doe",
 
-    title: "Software Engineer",
+    titles: ["Software Engineer"],
 
     email: "john@example.com",
 
@@ -179,6 +179,28 @@ export const mockResume: Resume = {
         "Built an AI-powered resume builder.",
         "Implemented real-time resume preview.",
         "Added ATS optimization pipeline.",
+      ],
+    },
+    {
+      id: "rag-study-assistant",
+
+      enabled: true,
+
+      title: "RAG Study Assistant",
+
+      link: "https://github.com/johndoe/rag-study-assistant",
+
+      technologies: [
+        "Python",
+        "LangChain",
+        "ChromaDB",
+        "OpenAI",
+      ],
+
+      bullets: [
+        "Built a retrieval-augmented generation system for textbook Q&A with 95% answer accuracy.",
+        "Implemented chunking strategies and hybrid search combining dense + sparse retrieval.",
+        "Deployed as a FastAPI service with a React frontend for interactive studying.",
       ],
     },
   ],

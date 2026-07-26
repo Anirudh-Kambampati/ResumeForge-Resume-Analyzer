@@ -179,7 +179,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
     }
   };
 
-  const renderField = (entry: any, field: EntryField) => {
+  const renderField = (entry: any, field: EntryField, safeId: string) => {
     const value = entry[field.key] ?? "";
 
     switch (field.type) {
@@ -190,7 +190,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
             <input
               type="text"
               value={value}
-              onChange={(e) => updateField(entry.id, field.key, e.target.value)}
+              onChange={(e) => updateField(safeId, field.key, e.target.value)}
               placeholder={field.placeholder}
               className={`w-full rounded-lg border border-white/10 bg-[#0C0C0E] py-2 text-sm text-white focus:border-blue-500 outline-none ${
                 hasUrlValue ? "pr-8 px-3" : "px-3"
@@ -199,7 +199,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
             {hasUrlValue && (
               <button
                 type="button"
-                onClick={() => updateField(entry.id, field.key, "")}
+                onClick={() => updateField(safeId, field.key, "")}
                 aria-label="Clear link"
                 tabIndex={0}
                 className="
@@ -221,8 +221,8 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
         return (
           <ClearableInput
             value={getTagText(entry)}
-            onChange={(e) => handleTagChange(entry.id, e.target.value)}
-            onClear={() => handleTagChange(entry.id, "")}
+            onChange={(e) => handleTagChange(safeId, e.target.value)}
+            onClear={() => handleTagChange(safeId, "")}
             placeholder={field.placeholder}
           />
         );
@@ -230,8 +230,8 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
         return (
           <ClearableTextarea
             value={value}
-            onChange={(e) => updateField(entry.id, field.key, e.target.value)}
-            onClear={() => updateField(entry.id, field.key, "")}
+            onChange={(e) => updateField(safeId, field.key, e.target.value)}
+            onClear={() => updateField(safeId, field.key, "")}
             placeholder={field.placeholder}
             rows={3}
             className="resize-none"
@@ -241,8 +241,8 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
         return (
           <ClearableTextarea
             value={value}
-            onChange={(e) => updateField(entry.id, field.key, e.target.value)}
-            onClear={() => updateField(entry.id, field.key, "")}
+            onChange={(e) => updateField(safeId, field.key, e.target.value)}
+            onClear={() => updateField(safeId, field.key, "")}
             placeholder={field.placeholder}
             rows={2}
             className="resize-none"
@@ -253,8 +253,8 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
         return (
           <ClearableInput
             value={value}
-            onChange={(e) => updateField(entry.id, field.key, e.target.value)}
-            onClear={() => updateField(entry.id, field.key, "")}
+            onChange={(e) => updateField(safeId, field.key, e.target.value)}
+            onClear={() => updateField(safeId, field.key, "")}
             placeholder={field.placeholder}
           />
         );
@@ -278,23 +278,25 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
       </div>
 
       <div className="space-y-4">
-        {entries.map((entry: any) => {
-          const isExpanded = expandedId === entry.id;
+        {entries.map((entry: any, index: number) => {
+          const safeId = entry.id || `${config.dataKey}-${index}-${Date.now()}`;
+          const isExpanded = expandedId === safeId;
+          const isEnabled = typeof entry.enabled === "boolean" ? entry.enabled : true;
           return (
             <div
-              key={entry.id}
+              key={safeId}
               className="rounded-xl border border-white/10 bg-[#141416]/40 overflow-hidden transition-all duration-200"
             >
               {/* Accordion Header */}
               <div
-                onClick={() => setExpandedId(isExpanded ? null : entry.id)}
+                onClick={() => setExpandedId(isExpanded ? null : safeId)}
                 className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition"
               >
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
-                    checked={entry.enabled}
-                    onChange={(e) => { e.stopPropagation(); updateField(entry.id, "enabled", e.target.checked); }}
+                    checked={isEnabled}
+                    onChange={(e) => { e.stopPropagation(); updateField(safeId, "enabled", e.target.checked); }}
                     className="h-4 w-4 rounded border-white/10 bg-[#0C0C0E] text-blue-600 focus:ring-blue-500"
                   />
                   <div>
@@ -356,7 +358,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
                         {row.map((field) => (
                           <div key={field.key} className={field.spanFull ? "space-y-1 col-span-2" : "space-y-1"}>
                             <label className="text-xs font-semibold text-zinc-400">{field.label}</label>
-                            {renderField(entry, field)}
+                            {renderField(entry, field, safeId)}
                           </div>
                         ))}
                       </div>
@@ -367,7 +369,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
                   {tagsField && (
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-zinc-400">{tagsField.label}</label>
-                      {renderField(entry, tagsField)}
+                      {renderField(entry, tagsField, safeId)}
                     </div>
                   )}
 

@@ -7,9 +7,9 @@ export interface BaseSection {
 // Template and Layout types
 // ============================================================
 
-export type ResumeTemplate = "ats" | "faang" | "research";
+export type ResumeTemplate = "ats" | "research";
 
-export type ResumeLayoutName = "ats" | "faang" | "research" | "custom";
+export type ResumeLayoutName = "ats" | "research" | "custom";
 
 // ============================================================
 // Resume — the single source of truth for all resume content
@@ -52,7 +52,10 @@ export interface Resume {
 
 export interface Profile {
   fullName: string;
-  title: string;
+
+  /** Professional titles — rendered joined by " | " in ATS headers.
+   *  Stored as an array. A single title renders without separator. */
+  titles: string[];
 
   email: string;
   phone: string;

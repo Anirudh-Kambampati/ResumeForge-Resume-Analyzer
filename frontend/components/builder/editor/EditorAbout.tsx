@@ -10,6 +10,8 @@ import {
   Sparkles,
   Check,
   AlertCircle,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { normalizeError } from "@/lib/errorHelper";
 import { detectPlatform, extractUsername, normalizeUrl } from "@/lib/contactLinks";
@@ -80,6 +82,13 @@ export default function EditorAbout({ resume, setResume }: Props) {
     setResume({
       ...resume,
       profile: { ...profile, [field]: value },
+    });
+  }
+
+  function updateTitles(titles: string[]) {
+    setResume({
+      ...resume,
+      profile: { ...profile, titles },
     });
   }
 
@@ -198,13 +207,81 @@ export default function EditorAbout({ resume, setResume }: Props) {
           placeholder="John Doe"
           fullWidth
         />
-        <Field
-          label="Professional Title"
-          value={profile.title || ""}
-          onChange={(v) => updateProfile("title", v)}
-          placeholder="Software Engineer"
-          fullWidth
-        />
+        {/* Professional Titles */}
+        <div className="space-y-3">
+          <label className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+            Professional Titles
+          </label>
+          {profile.titles.length === 0 && (
+            <p className="text-xs text-zinc-600">No titles added yet.</p>
+          )}
+          {profile.titles.map((title, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <div className="flex flex-col items-center justify-center">
+                <button
+                  type="button"
+                  disabled={idx === 0}
+                  onClick={() => {
+                    const next = [...profile.titles];
+                    [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+                    updateTitles(next);
+                  }}
+                  className="p-0.5 text-zinc-600 transition-colors hover:text-zinc-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                  aria-label="Move title up"
+                >
+                  <ChevronUp size={12} />
+                </button>
+                <button
+                  type="button"
+                  disabled={idx === profile.titles.length - 1}
+                  onClick={() => {
+                    const next = [...profile.titles];
+                    [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+                    updateTitles(next);
+                  }}
+                  className="p-0.5 text-zinc-600 transition-colors hover:text-zinc-300 disabled:opacity-20 disabled:cursor-not-allowed"
+                  aria-label="Move title down"
+                >
+                  <ChevronDown size={12} />
+                </button>
+              </div>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => {
+                    const next = [...profile.titles];
+                    next[idx] = e.target.value;
+                    updateTitles(next);
+                  }}
+                  placeholder="e.g. Software Engineer"
+                  className="w-full rounded-lg border border-white/10 bg-[#141416] px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = profile.titles.filter((_, i) => i !== idx);
+                  updateTitles(next);
+                }}
+                className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-white/5 hover:text-red-400"
+                aria-label={`Remove title: ${title}`}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              updateTitles([...profile.titles, ""]);
+            }}
+            className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-300"
+          >
+            <Plus size={12} />
+            Add Title
+          </button>
+        </div>
         <Field
           label="Email"
           value={profile.email || ""}

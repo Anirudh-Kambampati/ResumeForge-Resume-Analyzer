@@ -175,11 +175,16 @@ export default function EditorExperience({ resume, setResume }: Props) {
       </div>
 
       <div className="space-y-4">
-        {resume.experience.map((exp) => {
-          const isExpanded = expandedId === exp.id;
+        {resume.experience.map((exp, index) => {
+          // Defensive: ensure id is always a valid React key
+          const safeId = exp.id || `exp-${index}-${Date.now()}`;
+          const isExpanded = expandedId === safeId;
+          // Defensive: ensure enabled is always a boolean (prevents uncontrolled-to-controlled)
+          const isEnabled = typeof exp.enabled === "boolean" ? exp.enabled : true;
+
           return (
             <div
-              key={exp.id}
+              key={safeId}
               className="
                 rounded-xl
                 border
@@ -192,7 +197,7 @@ export default function EditorExperience({ resume, setResume }: Props) {
             >
               {/* Accordion Header */}
               <div
-                onClick={() => setExpandedId(isExpanded ? null : exp.id)}
+                onClick={() => setExpandedId(isExpanded ? null : safeId)}
                 className="
                   flex
                   items-center
@@ -206,10 +211,10 @@ export default function EditorExperience({ resume, setResume }: Props) {
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
-                    checked={exp.enabled}
+                    checked={isEnabled}
                     onChange={(e) => {
                       e.stopPropagation();
-                      updateField(exp.id, "enabled", e.target.checked);
+                      updateField(safeId, "enabled", e.target.checked);
                     }}
                     className="
                       h-4
@@ -235,7 +240,7 @@ export default function EditorExperience({ resume, setResume }: Props) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeExperience(exp.id);
+                      removeExperience(safeId);
                     }}
                     className="
                       p-1.5
@@ -260,8 +265,8 @@ export default function EditorExperience({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">Company Name</label>
                       <ClearableInput
                         value={exp.company}
-                        onChange={(e) => updateField(exp.id, "company", e.target.value)}
-                        onClear={() => updateField(exp.id, "company", "")}
+                        onChange={(e) => updateField(safeId, "company", e.target.value)}
+                        onClear={() => updateField(safeId, "company", "")}
                         placeholder="e.g. Google"
                       />
                     </div>
@@ -269,8 +274,8 @@ export default function EditorExperience({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">Role / Title</label>
                       <ClearableInput
                         value={exp.role}
-                        onChange={(e) => updateField(exp.id, "role", e.target.value)}
-                        onClear={() => updateField(exp.id, "role", "")}
+                        onChange={(e) => updateField(safeId, "role", e.target.value)}
+                        onClear={() => updateField(safeId, "role", "")}
                         placeholder="e.g. Software Engineer"
                       />
                     </div>
@@ -281,8 +286,8 @@ export default function EditorExperience({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">Location</label>
                       <ClearableInput
                         value={exp.location}
-                        onChange={(e) => updateField(exp.id, "location", e.target.value)}
-                        onClear={() => updateField(exp.id, "location", "")}
+                        onChange={(e) => updateField(safeId, "location", e.target.value)}
+                        onClear={() => updateField(safeId, "location", "")}
                         placeholder="e.g. Mountain View, CA"
                       />
                     </div>
@@ -290,8 +295,8 @@ export default function EditorExperience({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">Start Date</label>
                       <ClearableInput
                         value={exp.startDate}
-                        onChange={(e) => updateField(exp.id, "startDate", e.target.value)}
-                        onClear={() => updateField(exp.id, "startDate", "")}
+                        onChange={(e) => updateField(safeId, "startDate", e.target.value)}
+                        onClear={() => updateField(safeId, "startDate", "")}
                         placeholder="e.g. Jan 2023"
                       />
                     </div>
@@ -299,8 +304,8 @@ export default function EditorExperience({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">End Date</label>
                       <ClearableInput
                         value={exp.endDate}
-                        onChange={(e) => updateField(exp.id, "endDate", e.target.value)}
-                        onClear={() => updateField(exp.id, "endDate", "")}
+                        onChange={(e) => updateField(safeId, "endDate", e.target.value)}
+                        onClear={() => updateField(safeId, "endDate", "")}
                         disabled={exp.currentlyWorking}
                         placeholder={exp.currentlyWorking ? "Present" : "e.g. Dec 2024"}
                         className="disabled:opacity-40"
@@ -311,12 +316,12 @@ export default function EditorExperience({ resume, setResume }: Props) {
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      id={`curr-${exp.id}`}
-                      checked={exp.currentlyWorking}
-                      onChange={(e) => updateField(exp.id, "currentlyWorking", e.target.checked)}
+                      id={`curr-${safeId}`}
+                      checked={!!exp.currentlyWorking}
+                      onChange={(e) => updateField(safeId, "currentlyWorking", e.target.checked)}
                       className="h-4 w-4 rounded border-white/10 bg-[#0C0C0E] text-blue-600 focus:ring-blue-500"
                     />
-                    <label htmlFor={`curr-${exp.id}`} className="text-xs font-medium text-zinc-300 cursor-pointer">
+                    <label htmlFor={`curr-${safeId}`} className="text-xs font-medium text-zinc-300 cursor-pointer">
                       I am currently working here
                     </label>
                   </div>
@@ -326,7 +331,7 @@ export default function EditorExperience({ resume, setResume }: Props) {
                     <div className="flex justify-between items-center">
                       <h4 className="text-sm font-semibold text-zinc-300">Key Achievements / Bullets</h4>
                       <button
-                        onClick={() => addBullet(exp.id)}
+                        onClick={() => addBullet(safeId)}
                         className="
                           flex
                           items-center
@@ -351,26 +356,27 @@ export default function EditorExperience({ resume, setResume }: Props) {
                     </div>
 
                     <div className="space-y-2">
-                      {exp.bullets.map((bullet, bulletIdx) => {
-                        const isImproving = improvingIdx?.itemId === exp.id && improvingIdx?.bulletIdx === bulletIdx;
-                        const hasSuggestion = aiSuggestion?.itemId === exp.id && aiSuggestion?.bulletIdx === bulletIdx;
+                      {(exp.bullets || [""]).map((bullet, bulletIdx) => {
+                        const isImproving = improvingIdx?.itemId === safeId && improvingIdx?.bulletIdx === bulletIdx;
+                        const hasSuggestion = aiSuggestion?.itemId === safeId && aiSuggestion?.bulletIdx === bulletIdx;
+                        const bulletText = typeof bullet === "string" ? bullet : "";
 
                         return (
                           <div key={bulletIdx} className="space-y-2">
                             <div className="flex gap-2">
                               <span className="text-zinc-500 text-sm mt-2.5 font-bold">&bull;</span>
                               <ClearableTextarea
-                                value={bullet}
-                                onChange={(e) => updateBullet(exp.id, bulletIdx, e.target.value)}
-                                onClear={() => updateBullet(exp.id, bulletIdx, "")}
+                                value={bulletText}
+                                onChange={(e) => updateBullet(safeId, bulletIdx, e.target.value)}
+                                onClear={() => updateBullet(safeId, bulletIdx, "")}
                                 placeholder="Describe your achievements (e.g. Redesigned frontend layout, improving user conversion rate by 15%)"
                                 rows={2}
                                 className="flex-1 resize-none"
                               />
                               <div className="flex flex-col gap-1.5 justify-center">
                                 <button
-                                  onClick={() => handleImproveBullet(exp.id, bulletIdx, bullet, exp.role, exp.company)}
-                                  disabled={isImproving || !bullet.trim()}
+                                  onClick={() => handleImproveBullet(safeId, bulletIdx, bulletText, exp.role, exp.company)}
+                                  disabled={isImproving || !bulletText.trim()}
                                   title="Improve with AI"
                                   className="
                                     p-2
@@ -390,7 +396,7 @@ export default function EditorExperience({ resume, setResume }: Props) {
                                   <Sparkles size={14} />
                                 </button>
                                 <button
-                                  onClick={() => removeBullet(exp.id, bulletIdx)}
+                                  onClick={() => removeBullet(safeId, bulletIdx)}
                                   className="
                                     p-2
                                     rounded-lg
@@ -434,7 +440,7 @@ export default function EditorExperience({ resume, setResume }: Props) {
                                     </div>
                                   </div>
                                   <p className="text-xs text-zinc-300 italic">
-                                    "{aiSuggestion.text}"
+                                    "{aiSuggestion?.text || ""}"
                                   </p>
                                 </div>
                               </div>

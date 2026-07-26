@@ -4,10 +4,18 @@ import React from "react";
 import { Resume } from "@/types/resume";
 import { BuilderSection } from "@/store/resumeStore";
 import { Inter } from "next/font/google";
-import { normalizeExternalUrl, buildATSContactLine } from "@/lib/contactLinks";
+import { buildATSContactLine } from "@/lib/contactLinks";
+import { getProjectLinkInfo } from "@/lib/projectLinks";
+import { formatDateRange, normalizeDate } from "@/lib/dateFormat";
 import { getResumeLayout } from "@/lib/resumeLayout";
 import { hasSectionData } from "@/config/sections";
 import { getTemplateStyles } from "@/config/templates";
+import {
+  findOptimalLayout,
+  applyCompressLevel,
+  type CompressLevel,
+} from "@/lib/autoFitEngine";
+
 const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -17,40 +25,68 @@ const inter = Inter({
 type Props = {
   resume: Resume;
   selectedSection: BuilderSection;
+  /** When provided, uses this pre-computed compress level instead of auto-detecting. */
+  compressLevel?: CompressLevel;
 };
 
-export default function ResumePage({
-  resume,
-  selectedSection,
-}: Props) {
+export default function ResumePage({ resume, selectedSection, compressLevel }: Props) {
   const highlight = (section: BuilderSection) =>
     selectedSection === section
       ? "ring-2 ring-blue-500/40 rounded-sm transition-all duration-200 print:ring-0 print:outline-none"
       : "";
 
-  const L = getResumeLayout(resume);
+  // Auto-fit: find the optimal compress level if not provided externally
+  const autoFit = React.useMemo(
+    () => (compressLevel !== undefined ? null : findOptimalLayout(resume)),
+    [resume, compressLevel]
+  );
+
+  // Use provided compressLevel, auto-detected level, or 0
+  const effectiveCompress =
+    compressLevel ?? autoFit?.level ?? 0;
+
+  const T = getTemplateStyles(resume.template);
+
+  // Get base layout and apply compression
+  const baseL = getResumeLayout(resume);
+  const L = React.useMemo(
+    () => applyCompressLevel(baseL, effectiveCompress),
+    [baseL, effectiveCompress]
+  );
+
+  // Whether word-wrap optimization (level 6+) is active
+  const useBalanceWrap = effectiveCompress >= 6;
 
   const pt = (v: number) => `${v}pt`;
-  const cssPx = (v: number) => `${Math.round(v * 1.333)}px`;
+
+  // Balanced word wrapping style — applied at level 6+
+  const balanceWrap: React.CSSProperties = useBalanceWrap
+    ? { overflowWrap: "break-word", textWrap: "balance" }
+    : {};
+
+
 
   const profile = resume.profile || {};
   const atsContact = buildATSContactLine(profile);
 
-  const T = getTemplateStyles(resume.template);
-
+  // ============================================================
+  // Section heading renderer
+  // ============================================================
   const sectionHeading = (label: string) => {
     const textTransform = T.sectionHeaderTransform === "uppercase" ? "uppercase" : "none";
+    const hasBorder = T.sectionHeaderBorderWidth > 0;
+    const borderColor = "#000000";
     return (
       <h2
-        className={`text-neutral-900`}
+        className="text-neutral-900"
         style={{
           fontSize: pt(L.sectionHeaderFontSize),
           fontWeight: T.sectionHeaderFontWeight,
           letterSpacing: T.sectionHeaderLetterSpacing,
-          borderBottomWidth: T.sectionHeaderBorderWidth,
-          borderBottomStyle: T.sectionHeaderBorderStyle as "solid" | "double",
-          borderBottomColor: "#262626",
-          paddingBottom: pt(L.sectionHeaderPaddingBottom),
+          borderBottomWidth: hasBorder ? T.sectionHeaderBorderWidth : 0,
+          borderBottomStyle: hasBorder ? "solid" : "none",
+          borderBottomColor: borderColor,
+          paddingBottom: hasBorder ? pt(L.sectionHeaderPaddingBottom) : 0,
           marginBottom: pt(L.sectionHeaderMarginBottom),
           marginTop: "0px",
           textTransform: textTransform as "uppercase" | "none",
@@ -62,324 +98,464 @@ export default function ResumePage({
   };
 
   // ============================================================
-  // Section renderer — driven by sectionOrder from resume
-  // Each section renders its content based on the section key.
+  // Bullet component (shared structure with PDF)
   // ============================================================
-  const renderSection = (section: string) => {
-    switch (section) {
-      // ========================
-      // Experience
-      // ========================
-      case "Experience": {
-        const enabled = (resume.experience || []).filter((job) => job.enabled);
-        if (enabled.length === 0) return null;
-        return (
-          <section className={highlight("Experience")} style={{ marginTop: pt(L.sectionMarginTop) }}>
-            {sectionHeading("EXPERIENCE")}
-            <div>
-              {enabled.map((job, idx) => (
-                <div key={job.id} style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}>
-                  {/* Title & Dates row */}
-                  <div
-                    className="flex justify-between items-baseline font-sans"
-                    style={{ fontSize: pt(L.entrySubtitleFontSize), lineHeight: String(L.entryTitleLineHeight) }}
-                  >
-                    <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
-                      {job.role}
-                    </span>
-                    <span className="text-neutral-500 font-medium text-right whitespace-nowrap" style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px" }}>
-                      {job.startDate} &ndash; {job.currentlyWorking ? "Present" : job.endDate}
-                    </span>
-                  </div>
-                  {/* Company & Location row */}
-                  <div
-                    className="flex justify-between items-baseline font-sans"
-                    style={{ fontSize: pt(L.entryMetaFontSize), lineHeight: "1.3", marginTop: "1px" }}
-                  >
-                    <span className="text-neutral-600">
-                      {job.company}{job.location ? `, ${job.location}` : ""}
-                    </span>
-                  </div>
-                  {/* Bullets */}
-                  {job.bullets && job.bullets.length > 0 && (
-                    <ul className="list-disc text-neutral-700 leading-normal" style={{ marginTop: pt(L.bulletListMarginTop), paddingLeft: pt(L.bulletListPaddingLeft) }}>
-                      {job.bullets.filter((b) => b.trim()).map((bullet, bulletIdx) => (
-                        <li key={bulletIdx} style={{ fontSize: pt(L.bulletFontSize), lineHeight: String(L.bulletLineHeight), marginBottom: pt(L.bulletGap) }}>
-                          {bullet}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        );
-      }
+  const Bullets = ({ items: bulletItems }: { items: string[] }) => (
+    <div style={{ marginTop: pt(L.bulletListMarginTop) }}>
+      {bulletItems.filter(Boolean).map((item, index) => (
+        <div
+          key={index}
+          style={{ display: "flex", flexDirection: "row", marginBottom: pt(L.bulletGap) }}
+        >
+          <span
+            style={{
+              display: "inline-block",
+              width: pt(L.bulletListPaddingLeft * 0.45),
+              fontSize: pt(L.bulletFontSize),
+              color: "#a3a3a3",
+            }}
+          >
+            {"\u2022"}
+          </span>
+          <span
+            style={{
+              flex: 1,
+              fontSize: pt(L.bulletFontSize),
+              lineHeight: String(L.bulletLineHeight),
+              color: "#404040",
+              ...balanceWrap,
+            }}
+          >
+            {item}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 
-      // ========================
-      // Education
-      // ========================
-      case "Education": {
-        const enabled = (resume.education || []).filter((edu) => edu.enabled);
-        if (enabled.length === 0) return null;
-        return (
-          <section className={highlight("Education")} style={{ marginTop: pt(L.sectionMarginTop) }}>
-            {sectionHeading("EDUCATION")}
-            <div>
-              {enabled.map((edu, idx) => (
-                <div key={edu.id} style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}>
-                  {/* Degree & Dates row */}
-                  <div className="flex justify-between items-baseline font-sans" style={{ fontSize: pt(L.entrySubtitleFontSize), lineHeight: String(L.entryTitleLineHeight) }}>
-                    <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
-                      {edu.degree}{edu.field ? ` in ${edu.field}` : ""}
-                    </span>
-                    <span className="text-neutral-500 font-medium text-right whitespace-nowrap" style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px" }}>
-                      {edu.startDate} &ndash; {edu.endDate}
-                    </span>
-                  </div>
-                  {/* Institution & GPA */}
-                  <div className="font-sans" style={{ fontSize: pt(L.entryMetaFontSize), lineHeight: "1.3", marginTop: "1px" }}>
-                    <span className="text-neutral-600">{edu.institution}</span>
-                    {edu.grade && <span className="text-neutral-500"> &mdash; GPA: {edu.grade}</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        );
-      }
+  // ============================================================
+  // Section component (shared structure with PDF)
+  // ============================================================
+  const SectionContainer = ({
+    label,
+    section,
+    children,
+  }: {
+    label: string;
+    section: BuilderSection;
+    children: React.ReactNode;
+  }) => (
+    <section className={highlight(section)} style={{ marginTop: pt(L.sectionMarginTop) }}>
+      {sectionHeading(label)}
+      {children}
+    </section>
+  );
 
-      // ========================
-      // Projects
-      // ========================
-      case "Projects": {
-        const enabled = (resume.projects || []).filter((p) => p.enabled);
-        if (enabled.length === 0) return null;
-        return (
-          <section className={highlight("Projects")} style={{ marginTop: pt(L.sectionMarginTop) }}>
-            {sectionHeading("PROJECTS")}
-            <div>
-              {enabled.map((project, idx) => (
-                <div key={project.id} style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}>
-                  {/* Project title + technologies + link row */}
-                  <div className="flex justify-between items-baseline font-sans" style={{ fontSize: pt(L.entrySubtitleFontSize), lineHeight: String(L.entryTitleLineHeight) }}>
-                    <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
-                      {project.title}
-                      {project.technologies && project.technologies.length > 0 && (
-                        <span className="text-neutral-600" style={{ fontWeight: 400, fontSize: pt(L.entryMetaFontSize) }}>
-                          {" | "}{project.technologies.join(", ")}
-                        </span>
-                      )}
-                    </span>
-                    {project.link && (
-                      <a
-                        href={normalizeExternalUrl(project.link) || "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-neutral-500 hover:text-neutral-800 transition-colors font-sans"
-                        style={{ fontSize: pt(L.entryMetaFontSize - 0.5), marginLeft: "6px" }}
-                      >
-                        {project.link}
-                      </a>
-                    )}
-                  </div>
-                  {project.bullets && project.bullets.length > 0 && (
-                    <ul className="list-disc text-neutral-700 leading-normal" style={{ marginTop: pt(L.bulletListMarginTop), paddingLeft: pt(L.bulletListPaddingLeft) }}>
-                      {project.bullets.filter((b) => b.trim()).map((bullet, bulletIdx) => (
-                        <li key={bulletIdx} style={{ fontSize: pt(L.bulletFontSize), lineHeight: String(L.bulletLineHeight), marginBottom: pt(L.bulletGap) }}>{bullet}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        );
-      }
+  // ============================================================
+  // Section renderer — exactly matches PDF SectionRenderer
+  // ============================================================
+  const renderSection = (sectionId: string) => {
+    const NDASH = " \u2013 ";
+    const SEP = " \u2014 ";
 
-      // ========================
-      // Research
-      // ========================
-      case "Research": {
-        const enabled = (resume.research || []).filter((r: any) => r.enabled);
-        if (enabled.length === 0) return null;
-        return (
-          <section className={highlight("Research")} style={{ marginTop: pt(L.sectionMarginTop) }}>
-            {sectionHeading("RESEARCH")}
-            <div>
-              {enabled.map((item: any, idx: number) => (
-                <div key={item.id} style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}>
-                  <div className="flex justify-between font-sans" style={{ fontSize: pt(L.entryTitleFontSize), lineHeight: String(L.entryTitleLineHeight) }}>
-                    <div>
-                      <span style={{ fontSize: pt(L.entrySubtitleFontSize), fontWeight: T.entryTitleFontWeight, color: "#171717" }}>{item.title}</span>
-                      {item.institution && <span className="text-neutral-600" style={{ fontSize: pt(L.entryMetaFontSize) }}> &mdash; {item.institution}</span>}
-                      {item.advisor && <div className="text-neutral-500 italic" style={{ fontSize: pt(L.entryMetaFontSize) }}>Advisor: {item.advisor}</div>}
-                      {item.link && <span className="text-neutral-500 ml-2 select-all font-mono" style={{ fontSize: pt(L.entryMetaFontSize) }}>({item.link})</span>}
-                    </div>
-                    <div className="text-neutral-500 font-medium text-right" style={{ fontSize: pt(L.entryMetaFontSize) }}>
-                      {item.duration && <div>{item.duration}</div>}
-                      {item.keywords?.length > 0 && <div className="italic">{item.keywords.join(", ")}</div>}
-                    </div>
-                  </div>
-                  {item.bullets && item.bullets.filter(Boolean).length > 0 && (
-                    <ul className="list-disc text-neutral-700 leading-normal" style={{ marginTop: pt(L.bulletListMarginTop), paddingLeft: pt(L.bulletListPaddingLeft) }}>
-                      {item.bullets.filter((b: string) => b.trim()).map((bullet: string, bulletIdx: number) => (
-                        <li key={bulletIdx} style={{ fontSize: pt(L.bulletFontSize), lineHeight: String(L.bulletLineHeight), marginBottom: pt(L.bulletGap) }}>{bullet}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        );
-      }
-
-      // ========================
-      // Publications
-      // ========================
-      case "Publications": {
-        const enabled = (resume.publications || []).filter((p: any) => p.enabled);
-        if (enabled.length === 0) return null;
-        return (
-          <section className={highlight("Publications")} style={{ marginTop: pt(L.sectionMarginTop) }}>
-            {sectionHeading("PUBLICATIONS")}
-            <div>
-              {enabled.map((item: any, idx: number) => (
-                <div key={item.id} style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}>
-                  <div className="flex justify-between font-sans" style={{ fontSize: pt(L.entryTitleFontSize), lineHeight: String(L.entryTitleLineHeight) }}>
-                    <div>
-                      <span style={{ fontSize: pt(L.entrySubtitleFontSize), fontWeight: T.entryTitleFontWeight, color: "#171717" }}>{item.title}</span>
-                      {item.authors && <div className="text-neutral-600" style={{ fontSize: pt(L.entryMetaFontSize) }}>{item.authors}</div>}
-                      <div className="text-neutral-600" style={{ fontSize: pt(L.entryMetaFontSize) }}>
-                        {item.venue}
-                        {item.doi && <span className="text-neutral-500 ml-2 select-all font-mono" style={{ fontSize: pt(L.entryMetaFontSize) }}>({item.doi})</span>}
-                      </div>
-                    </div>
-                    <div className="text-right text-neutral-500 font-medium font-sans" style={{ fontSize: pt(L.entryMetaFontSize) }}>
-                      {item.date && <div>{item.date}</div>}
-                      {item.keywords?.length > 0 && <div className="italic">{item.keywords.join(", ")}</div>}
-                    </div>
-                  </div>
-                  {item.description && (
-                    <p className="text-neutral-700 leading-normal mt-1" style={{ fontSize: pt(L.bulletFontSize), lineHeight: String(L.bulletLineHeight) }}>
-                      {item.description}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        );
-      }
-
-      // ========================
-      // Skills
-      // ========================
-      case "Skills": {
-        const active = (resume.skills || []).filter((cat) => cat.title && cat.items?.length > 0);
-        if (active.length === 0) return null;
-        return (
-          <section className={highlight("Skills")} style={{ marginTop: pt(L.sectionMarginTop) }}>
-            {sectionHeading("SKILLS")}
-            <div className="font-sans" style={{ marginTop: pt(L.skillsMarginTop) }}>
-              {active.map((category) => (
-                <div key={category.id} style={{ fontSize: pt(L.skillsItemFontSize), lineHeight: String(L.skillsItemLineHeight), marginBottom: pt(L.skillsItemMarginBottom) }}>
-                  <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>{category.title}:</span>{" "}
-                  <span className="text-neutral-700">{category.items.join(", ")}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        );
-      }
-
-      // ========================
-      // Achievements
-      // ========================
-      case "Achievements": {
-        const enabled = (resume.achievements || []).filter((a) => a.enabled);
-        if (enabled.length === 0) return null;
-        return (
-          <section className={highlight("Achievements")} style={{ marginTop: pt(L.sectionMarginTop) }}>
-            {sectionHeading("ACHIEVEMENTS")}
-            <ul className="list-disc font-sans" style={{ marginTop: pt(L.achievementsListMarginTop), paddingLeft: pt(L.achievementsPaddingLeft) }}>
-              {enabled.map((achievement) => (
-                <li key={achievement.id} style={{ fontSize: pt(L.achievementsItemFontSize), lineHeight: String(L.achievementsItemLineHeight), marginBottom: pt(L.achievementsItemMarginBottom) }}>
-                  <span className="text-neutral-950">{achievement.title}</span>
-                  {achievement.description && <span> &mdash; {achievement.description}</span>}
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      }
-
-      // ========================
-      // Certifications
-      // ========================
-      case "Certifications": {
-        const enabled = (resume.certifications || []).filter((c) => c.enabled);
-        if (enabled.length === 0) return null;
-        const leftCol = enabled.filter((_, idx) => idx % 2 === 0);
-        const rightCol = enabled.filter((_, idx) => idx % 2 === 1);
-        const renderCert = (c: any) => (
-          <div key={c.id} className="flex justify-between text-neutral-700" style={{ fontSize: pt(L.certificationsItemFontSize), lineHeight: String(L.certificationsItemLineHeight) }}>
-            <div>
-              <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>{c.title}</span> &mdash; {c.issuer}
-              {c.credentialId && <span className="text-neutral-500 font-mono ml-2" style={{ fontSize: pt(L.certificationsItemFontSize - 1) }}>({c.credentialId})</span>}
-            </div>
-            <div className="text-neutral-500 font-medium ml-2 whitespace-nowrap">{c.date}</div>
-          </div>
-        );
-        return (
-          <section className={highlight("Certifications")} style={{ marginTop: pt(L.sectionMarginTop) }}>
-            {sectionHeading("CERTIFICATIONS")}
-            <div className="flex font-sans" style={{ marginTop: pt(L.certificationsMarginTop) }}>
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: pt(L.certificationsGap) }}>
-                {leftCol.map(renderCert)}
+    // ---- EXPERIENCE ----
+    if (sectionId === "Experience") {
+      const items = (resume.experience || []).filter((item) => item.enabled);
+      if (items.length === 0) return null;
+      return (
+        <SectionContainer label="Experience" section="Experience">
+          {items.map((item, idx) => (
+            <div
+              key={item.id}
+              style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}
+            >
+              {/* Title + Date */}
+              <div
+                className="flex justify-between items-baseline"
+                style={{ fontSize: pt(L.entrySubtitleFontSize) }}
+              >
+                <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                  {item.role}
+                </span>
+                <span
+                  className="text-neutral-500 font-medium text-right whitespace-nowrap"
+                  style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px" }}
+                >
+                  {formatDateRange(item.startDate, item.endDate, item.currentlyWorking)}
+                </span>
               </div>
-              {rightCol.length > 0 && (
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: pt(L.certificationsGap) }}>
-                  {rightCol.map(renderCert)}
+              {/* Company + Location */}
+              <div
+                className="text-neutral-600"
+                style={{
+                  fontWeight: T.entrySubtitleFontWeight,
+                  fontSize: pt(L.entryMetaFontSize),
+                }}
+              >
+                {item.company}{item.location ? `, ${item.location}` : ""}
+              </div>
+              {/* Bullets */}
+              {item.bullets && item.bullets.length > 0 && (
+                <Bullets items={item.bullets} />
+              )}
+            </div>
+          ))}
+        </SectionContainer>
+      );
+    }
+
+    // ---- EDUCATION ----
+    if (sectionId === "Education") {
+      const items = (resume.education || []).filter((item) => item.enabled);
+      if (items.length === 0) return null;
+      return (
+        <SectionContainer label="Education" section="Education">
+          {items.map((item, idx) => {
+            let degreeStr = item.degree;
+            if (item.field && !item.degree.toLowerCase().includes(item.field.toLowerCase())) {
+              degreeStr += ` in ${item.field}`;
+            }
+            return (
+              <div
+                key={item.id}
+                style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}
+              >
+                {/* Degree + Date */}
+                <div
+                  className="flex justify-between items-baseline"
+                  style={{ fontSize: pt(L.entrySubtitleFontSize) }}
+                >
+                  <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                    {degreeStr}
+                  </span>
+                  <span
+                    className="text-neutral-500 font-medium text-right whitespace-nowrap"
+                    style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px" }}
+                  >
+                    {formatDateRange(item.startDate, item.endDate)}
+                  </span>
+                </div>
+                {/* Institution + GPA */}
+                <div
+                  className="text-neutral-600"
+                  style={{
+                    fontWeight: T.entrySubtitleFontWeight,
+                    fontSize: pt(L.entryMetaFontSize),
+                }}
+              >
+                {item.institution}{item.grade ? `${SEP}${item.grade}` : ""}
+              </div>
+            </div>
+            );
+          })}
+        </SectionContainer>
+      );
+    }
+
+    // ---- PROJECTS ----
+    if (sectionId === "Projects") {
+      const items = (resume.projects || []).filter((item) => item.enabled);
+      if (items.length === 0) return null;
+      return (
+        <SectionContainer label="Projects" section="Projects">
+          {items.map((item, idx) => {
+            const linkInfo = getProjectLinkInfo(item.link);
+            return (
+              <div
+                key={item.id}
+                style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}
+              >
+                {/* Project Name | Technologies + Link */}
+                <div className="flex justify-between items-baseline" style={{ fontSize: pt(L.entrySubtitleFontSize) }}>
+                  <span>
+                    <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                      {item.title}
+                    </span>
+                    {item.technologies && item.technologies.length > 0 && (
+                      <span
+                        className="text-neutral-600"
+                        style={{ fontWeight: 400, fontSize: pt(L.entryMetaFontSize) }}
+                      >
+                        {" | "}{item.technologies.join(", ")}
+                      </span>
+                    )}
+                  </span>
+                  {linkInfo && (
+                    <a
+                      href={linkInfo.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-neutral-500 hover:text-neutral-800 transition-colors"
+                      style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "6px", textDecoration: "none" }}
+                    >
+                      {linkInfo.label}
+                    </a>
+                  )}
+                </div>
+                {/* Bullets */}
+                {item.bullets && item.bullets.length > 0 && (
+                  <Bullets items={item.bullets} />
+                )}
+              </div>
+            );
+          })}
+        </SectionContainer>
+      );
+    }
+
+    // ---- RESEARCH ----
+    if (sectionId === "Research") {
+      const items = (resume.research || []).filter((item: any) => item.enabled);
+      if (items.length === 0) return null;
+      return (
+        <SectionContainer label="Research" section="Research">
+          {items.map((item: any, idx: number) => (
+            <div
+              key={item.id}
+              style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}
+            >
+              {/* Title + Date */}
+              <div className="flex justify-between items-baseline" style={{ fontSize: pt(L.entrySubtitleFontSize) }}>
+                <div>
+                  <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                    {item.title}
+                  </span>
+                  {item.institution && (
+                    <div
+                      className="text-neutral-600"
+                      style={{ fontWeight: T.entrySubtitleFontWeight, fontSize: pt(L.entryMetaFontSize) }}
+                    >
+                      {item.institution}
+                      {item.advisor ? ` \u2014 Advisor: ${item.advisor}` : ""}
+                    </div>
+                  )}
+                </div>
+                <span
+                  className="text-neutral-500 font-medium text-right whitespace-nowrap"
+                  style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px" }}
+                >
+                  {normalizeDate(item.duration)}
+                </span>
+              </div>
+              {/* Bullets */}
+              {item.bullets && item.bullets.filter(Boolean).length > 0 && (
+                <Bullets items={item.bullets} />
+              )}
+            </div>
+          ))}
+        </SectionContainer>
+      );
+    }
+
+    // ---- PUBLICATIONS ----
+    if (sectionId === "Publications") {
+      const items = (resume.publications || []).filter((item: any) => item.enabled);
+      if (items.length === 0) return null;
+      return (
+        <SectionContainer label="Publications" section="Publications">
+          {items.map((item: any, idx: number) => (
+            <div
+              key={item.id}
+              style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}
+            >
+              <div className="flex justify-between" style={{ fontSize: pt(L.entrySubtitleFontSize) }}>
+                <div>
+                  <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                    {item.title}
+                  </span>
+                  {item.authors && (
+                    <div
+                      className="text-neutral-600"
+                      style={{ fontWeight: T.entrySubtitleFontWeight, fontSize: pt(L.entryMetaFontSize) }}
+                    >
+                      {item.authors}
+                    </div>
+                  )}
+                  <div
+                    className="text-neutral-600"
+                    style={{ fontWeight: 400, fontSize: pt(L.entryMetaFontSize) }}
+                  >
+                    {item.venue}
+                    {item.doi ? ` \u2014 ${item.doi}` : ""}
+                  </div>
+                </div>
+                {item.date && (
+                  <span
+                    className="text-neutral-500 font-medium text-right whitespace-nowrap"
+                    style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px" }}
+                  >
+                    {normalizeDate(item.date)}
+                  </span>
+                )}
+              </div>
+              {item.description && (
+                <div
+                  className="text-neutral-700"
+                  style={{
+                    fontSize: pt(L.bodyTextFontSize),
+                    lineHeight: String(L.bodyTextLineHeight),
+                    marginTop: pt(L.bodyTextMarginTop),
+                    ...balanceWrap,
+                  }}
+                >
+                  {item.description}
                 </div>
               )}
             </div>
-          </section>
-        );
-      }
-
-      // ========================
-      // Languages
-      // ========================
-      case "Languages": {
-        const enabled = (resume.languages || []).filter((l) => l.enabled && (l.name || l.proficiency));
-        if (enabled.length === 0) return null;
-        return (
-          <section className={highlight("Languages")} style={{ marginTop: pt(L.sectionMarginTop) }}>
-            {sectionHeading("LANGUAGES")}
-            <div className="flex flex-wrap font-sans" style={{ marginTop: pt(L.languagesMarginTop), gap: cssPx(L.languagesGap) }}>
-              {enabled.map((lang) => (
-                <div key={lang.id} style={{ fontSize: pt(L.languagesItemFontSize), lineHeight: String(L.languagesItemLineHeight) }}>
-                  {lang.name && <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>{lang.name}</span>}
-                  {lang.name && lang.proficiency && <span>: </span>}
-                  {lang.proficiency && <span className="italic text-neutral-600">{lang.proficiency}</span>}
-                </div>
-              ))}
-            </div>
-          </section>
-        );
-      }
-
-      default:
-        return null;
+          ))}
+        </SectionContainer>
+      );
     }
+
+    // ---- SKILLS ----
+    if (sectionId === "Skills") {
+      const active = (resume.skills || []).filter(
+        (item) => item.title?.trim() && item.items?.length > 0
+      );
+      if (active.length === 0) return null;
+      return (
+        <SectionContainer label="Skills" section="Skills">
+          <div style={{ marginTop: pt(L.skillsMarginTop) }}>
+            {active.map((item) => (
+              <div
+                key={item.id}
+                className="font-sans"
+                style={{
+                  fontSize: pt(L.skillsItemFontSize),
+                  lineHeight: String(L.skillsItemLineHeight),
+                  marginBottom: pt(L.skillsItemMarginBottom),
+                }}
+              >
+                <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                  {item.title}:
+                </span>{" "}
+                <span className="text-neutral-700">
+                  {[...new Set(item.items.filter(Boolean))].join(", ")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </SectionContainer>
+      );
+    }
+
+    // ---- ACHIEVEMENTS ----
+    if (sectionId === "Achievements") {
+      const items = (resume.achievements || []).filter(
+        (item) => item.enabled && (item.title || item.description)
+      );
+      if (items.length === 0) return null;
+      return (
+        <SectionContainer label="Achievements" section="Achievements">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                marginBottom: pt(L.achievementsItemMarginBottom),
+              }}
+            >
+              <span
+                style={{
+                  display: "inline-block",
+                  width: pt(L.bulletListPaddingLeft * 0.45),
+                  fontSize: pt(L.bulletFontSize),
+                  color: "#a3a3a3",
+                }}
+              >
+                {"\u2022"}
+              </span>
+              <span
+                style={{
+                  flex: 1,
+                  fontSize: pt(L.bulletFontSize),
+                  lineHeight: String(L.bulletLineHeight),
+                  color: "#404040",
+                  ...balanceWrap,
+                }}
+              >
+                {item.title}
+                {item.title && item.description ? " \u2014 " : ""}
+                {item.description || ""}
+              </span>
+            </div>
+          ))}
+        </SectionContainer>
+      );
+    }
+
+    // ---- CERTIFICATIONS (single column) ----
+    if (sectionId === "Certifications") {
+      const items = (resume.certifications || []).filter((item) => item.enabled);
+      if (items.length === 0) return null;
+      return (
+        <SectionContainer label="Certifications" section="Certifications">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                marginBottom: pt(L.certificationsGap * 0.4),
+              }}
+            >
+              <span
+                className="text-neutral-700"
+                style={{ fontSize: pt(L.certificationsItemFontSize), lineHeight: String(L.certificationsItemLineHeight) }}
+              >
+                <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                  {item.title}
+                </span>
+                {item.issuer ? ` \u2014 ${item.issuer}` : ""}
+              </span>
+            </div>
+          ))}
+        </SectionContainer>
+      );
+    }
+
+    // ---- LANGUAGES ----
+    if (sectionId === "Languages") {
+      const items = (resume.languages || []).filter(
+        (item) => item.enabled && (item.name || item.proficiency)
+      );
+      if (items.length === 0) return null;
+      return (
+        <SectionContainer label="Languages" section="Languages">
+          <div
+            className="flex flex-wrap"
+            style={{ marginTop: pt(L.languagesMarginTop) }}
+          >
+            {items.map((lang) => (
+              <div
+                key={lang.id}
+                style={{
+                  fontSize: pt(L.languagesItemFontSize),
+                  lineHeight: String(L.languagesItemLineHeight),
+                  marginRight: pt(L.languagesGap),
+                  marginBottom: pt(L.languagesGap * 0.3),
+                }}
+              >
+                {lang.name && (
+                  <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                    {lang.name}
+                  </span>
+                )}
+                {lang.name && lang.proficiency ? ": " : null}
+                {lang.proficiency && (
+                  <span className="italic text-neutral-600">{lang.proficiency}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </SectionContainer>
+      );
+    }
+
+    return null;
   };
 
   // ============================================================
   // Render
-  // Header is always rendered first, then sections from sectionOrder.
   // ============================================================
   const sectionsToRender = (resume.sectionOrder || []).filter((section) =>
     hasSectionData(resume, section)
@@ -389,98 +565,98 @@ export default function ResumePage({
     <article
       id="resume-page"
       className={`
-        w-[794px]
-        min-h-[1123px]
-        bg-white
-        text-black
-        shadow-2xl
-        print:shadow-none
-        print:w-full
-        print:max-w-full
-        print:min-h-0
-        print:bg-white
-        print:text-black
+        w-[794px] min-h-[1123px] bg-white text-black
+        shadow-2xl print:shadow-none print:w-full print:max-w-full print:min-h-0 print:bg-white print:text-black
         ${inter.className}
       `}
       style={{ padding: pt(L.pagePadding) }}
     >
-      <div className="flex h-full flex-col text-left">
-
-        {/* Header — always first */}
-        <header
-          className={`text-center border-b border-neutral-300 ${highlight("Profile")}`}
-          style={{ paddingBottom: pt(L.headerPaddingBottom) }}
+      {/* HEADER */}
+      <header
+        className={`text-center ${highlight("Profile")}`}
+        style={{ marginBottom: pt(L.headerPaddingBottom) }}
+      >
+        <h1
+          className="tracking-tight text-neutral-900"
+          style={{
+            fontSize: pt(L.nameFontSize * T.nameSizeMultiplier),
+            fontWeight: T.nameFontWeight,
+            lineHeight: String(L.nameLineHeight),
+            marginBottom: pt(L.nameMarginBottom),
+          }}
         >
-          <h1
-            className="tracking-tight text-neutral-900"
+          {profile.fullName || "Your Full Name"}
+        </h1>
+
+        {/* Name → Contact → Titles */}
+        {atsContact.length > 0 && (
+          <div
+            className="flex flex-wrap justify-center items-center text-neutral-600"
             style={{
-              fontSize: pt(L.nameFontSize * T.nameSizeMultiplier),
-              fontWeight: T.nameFontWeight,
-              lineHeight: String(L.nameLineHeight),
-              marginBottom: pt(L.nameMarginBottom),
+              fontSize: pt(L.contactFontSize),
+              marginBottom: pt(L.contactRowGap),
             }}
           >
-            {profile.fullName || "Your Full Name"}
-          </h1>
+            {atsContact.map((entry, idx) => (
+              <React.Fragment key={idx}>
+                {idx > 0 && (
+                  <span className="text-neutral-300 select-none" style={{ margin: `0 ${pt(L.contactRowGap * 0.4)}` }}>
+                    |
+                  </span>
+                )}
+                {entry.href ? (
+                  <a
+                    href={entry.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ textDecoration: "none", color: "#404040" }}
+                  >
+                    {entry.display}
+                  </a>
+                ) : (
+                  <span>{entry.display}</span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        )}
+
+        {(profile.titles?.length ?? 0) > 0 && (
           <p
             className="text-neutral-700"
             style={{
               fontSize: pt(L.titleFontSize),
               fontWeight: T.titleFontWeight,
-              letterSpacing: T.titleLetterSpacing,
-              marginTop: pt(L.titleMarginTop),
               marginBottom: pt(L.titleMarginBottom),
             }}
           >
-            {profile.title || "Professional Title"}
+            {profile.titles.filter(Boolean).join(" | ")}
           </p>
-          {atsContact.length > 0 && (
-            <div
-              className="flex flex-wrap justify-center items-center text-neutral-600 font-sans"
-              style={{ marginTop: pt(L.skillsMarginTop), fontSize: pt(L.contactFontSize) }}
-            >
-              {atsContact.map((entry, idx) => {
-                return (
-                  <React.Fragment key={idx}>
-                    {idx > 0 && <span className="text-neutral-300 select-none mx-1">|</span>}
-                    {entry.href ? (
-                      <a href={entry.href} className="hover:underline" target="_blank" rel="noopener noreferrer">
-                        {entry.display}
-                      </a>
-                    ) : (
-                      <span>{entry.display}</span>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          )}
-        </header>
-
-        {/* Professional Summary — rendered directly after header (part of Profile) */}
-        {resume.summary?.enabled && resume.summary.text?.trim() && (
-          <section className={highlight("Profile")} style={{ marginTop: pt(L.sectionMarginTop) }}>
-            {sectionHeading("PROFESSIONAL SUMMARY")}
-            <p
-              className="text-neutral-700 font-sans"
-              style={{
-                fontSize: pt(L.bodyTextFontSize),
-                lineHeight: String(L.bodyTextLineHeight),
-                marginTop: pt(L.bodyTextMarginTop),
-              }}
-            >
-              {resume.summary.text}
-            </p>
-          </section>
         )}
+      </header>
 
-        {/* Render remaining sections in sectionOrder */}
-        <div className="text-neutral-800">
-          {sectionsToRender.map((section) => (
-            <div key={section}>{renderSection(section)}</div>
-          ))}
-        </div>
+      {/* PROFESSIONAL SUMMARY */}
+      {resume.summary?.enabled && resume.summary.text?.trim() && (
+        <section className={highlight("Profile")} style={{ marginTop: pt(L.sectionMarginTop) }}>
+          {sectionHeading("Summary")}
+          <p
+            className="text-neutral-700"
+            style={{
+              fontSize: pt(L.bodyTextFontSize),
+              lineHeight: String(L.bodyTextLineHeight),
+              ...balanceWrap,
+            }}
+          >
+            {resume.summary.text}
+          </p>
+        </section>
+      )}
 
+      {/* SECTIONS */}
+      <div className="text-neutral-800">
+        {sectionsToRender.map((section) => (
+          <div key={section}>{renderSection(section)}</div>
+        ))}
       </div>
     </article>
   );

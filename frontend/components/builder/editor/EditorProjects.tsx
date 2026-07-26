@@ -4,8 +4,20 @@ import { useState } from "react";
 import { Resume, Project } from "@/types/resume";
 import { Plus, Trash, ChevronDown, ChevronUp, Sparkles, Check, X, AlertCircle } from "lucide-react";
 import { normalizeError } from "@/lib/errorHelper";
+import { getProjectLinkInfo } from "@/lib/projectLinks";
 import ClearableInput from "@/components/ui/ClearableInput";
 import ClearableTextarea from "@/components/ui/ClearableTextarea";
+
+// ============================================================
+// Link label config — color and icon for each classification
+// ============================================================
+
+const LINK_LABEL_STYLES: Record<string, { color: string; icon: string }> = {
+  GitHub: { color: "text-neutral-300", icon: "" },
+  GitLab: { color: "text-orange-400", icon: "" },
+  Bitbucket: { color: "text-blue-400", icon: "" },
+  "Live Demo": { color: "text-green-400", icon: "" },
+};
 
 type Props = {
   resume: Resume;
@@ -21,7 +33,7 @@ export default function EditorProjects({ resume, setResume }: Props) {
   const [aiSuggestion, setAiSuggestion] = useState<{ itemId: string; bulletIdx: number; text: string } | null>(null);
 
   // Local raw text for each project's technologies input to preserve cursor position.
-  // Keyed by project.id. Falls back to technologies.join(", ") when unset.
+  // Keyed by project.safeId (id or fallback). Falls back to technologies.join(", ") when unset.
   const [techTexts, setTechTexts] = useState<Record<string, string>>({});
 
   const updateProjects = (projects: Project[]) => {
@@ -193,11 +205,13 @@ export default function EditorProjects({ resume, setResume }: Props) {
       </div>
 
       <div className="space-y-4">
-        {resume.projects.map((project) => {
-          const isExpanded = expandedId === project.id;
+        {resume.projects.map((project, index) => {
+          const safeId = project.id || `proj-${index}-${Date.now()}`;
+          const isExpanded = expandedId === safeId;
+          const isEnabled = typeof project.enabled === "boolean" ? project.enabled : true;
           return (
             <div
-              key={project.id}
+              key={safeId}
               className="
                 rounded-xl
                 border
@@ -210,7 +224,7 @@ export default function EditorProjects({ resume, setResume }: Props) {
             >
               {/* Accordion Header */}
               <div
-                onClick={() => setExpandedId(isExpanded ? null : project.id)}
+                onClick={() => setExpandedId(isExpanded ? null : safeId)}
                 className="
                   flex
                   items-center
@@ -224,10 +238,10 @@ export default function EditorProjects({ resume, setResume }: Props) {
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
-                    checked={project.enabled}
+                    checked={isEnabled}
                     onChange={(e) => {
                       e.stopPropagation();
-                      updateField(project.id, "enabled", e.target.checked);
+                      updateField(safeId, "enabled", e.target.checked);
                     }}
                     className="
                       h-4
@@ -243,7 +257,7 @@ export default function EditorProjects({ resume, setResume }: Props) {
                     <h3 className="font-semibold text-white">
                       {project.title || "Untitled Project"}
                     </h3>
-                    {project.technologies.length > 0 && (
+                    {(project.technologies || []).length > 0 && (
                       <p className="text-xs text-zinc-500">
                         {project.technologies.join(", ")}
                       </p>
@@ -254,7 +268,7 @@ export default function EditorProjects({ resume, setResume }: Props) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeProject(project.id);
+                      removeProject(safeId);
                     }}
                     className="
                       p-1.5
@@ -279,8 +293,8 @@ export default function EditorProjects({ resume, setResume }: Props) {
                       <label className="text-xs font-semibold text-zinc-400">Project Title</label>
                       <ClearableInput
                         value={project.title}
-                        onChange={(e) => updateField(project.id, "title", e.target.value)}
-                        onClear={() => updateField(project.id, "title", "")}
+                        onChange={(e) => updateField(safeId, "title", e.target.value)}
+                        onClear={() => updateField(safeId, "title", "")}
                         placeholder="e.g. ResumeForge"
                       />
                     </div>
@@ -290,7 +304,7 @@ export default function EditorProjects({ resume, setResume }: Props) {
                         <input
                           type="text"
                           value={project.link || ""}
-                          onChange={(e) => updateField(project.id, "link", e.target.value)}
+                          onChange={(e) => updateField(safeId, "link", e.target.value)}
                           placeholder="e.g. https://resumeforge.dev"
                           className={`w-full rounded-lg border border-white/10 bg-[#0C0C0E] py-2 text-sm text-white focus:border-blue-500 outline-none ${
                             project.link ? "pr-8 px-3" : "px-3"
@@ -299,7 +313,7 @@ export default function EditorProjects({ resume, setResume }: Props) {
                         {project.link && (
                           <button
                             type="button"
-                            onClick={() => updateField(project.id, "link", "")}
+                            onClick={() => updateField(safeId, "link", "")}
                             aria-label="Clear link"
                             tabIndex={0}
                             className="
@@ -315,6 +329,22 @@ export default function EditorProjects({ resume, setResume }: Props) {
                           </button>
                         )}
                       </div>
+                      {/* Auto-detected link label badge */}
+                      {project.link && (() => {
+                        const info = getProjectLinkInfo(project.link);
+                        if (!info) return null;
+                        const style = LINK_LABEL_STYLES[info.label] || { color: "text-green-400", icon: "" };
+                        return (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className={`text-[10px] font-semibold uppercase tracking-wider ${style.color}`}>
+                              {info.label}
+                            </span>
+                            <span className="text-[9px] text-zinc-600">
+                              &middot; auto-detected
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -322,8 +352,8 @@ export default function EditorProjects({ resume, setResume }: Props) {
                     <label className="text-xs font-semibold text-zinc-400">Technologies (Comma-separated)</label>
                     <ClearableInput
                       value={getTechText(project)}
-                      onChange={(e) => handleTechChange(project.id, e.target.value)}
-                      onClear={() => handleTechChange(project.id, "")}
+                      onChange={(e) => handleTechChange(safeId, e.target.value)}
+                      onClear={() => handleTechChange(safeId, "")}
                       placeholder="e.g. Next.js, FastAPI, PostgreSQL, Tailwind"
                     />
                   </div>
@@ -333,7 +363,7 @@ export default function EditorProjects({ resume, setResume }: Props) {
                     <div className="flex justify-between items-center">
                       <h4 className="text-sm font-semibold text-zinc-300">Project Accomplishments / Bullets</h4>
                       <button
-                        onClick={() => addBullet(project.id)}
+                        onClick={() => addBullet(safeId)}
                         className="
                           flex
                           items-center
@@ -358,26 +388,27 @@ export default function EditorProjects({ resume, setResume }: Props) {
                     </div>
 
                     <div className="space-y-2">
-                      {project.bullets.map((bullet, bulletIdx) => {
-                        const isImproving = improvingIdx?.itemId === project.id && improvingIdx?.bulletIdx === bulletIdx;
-                        const hasSuggestion = aiSuggestion?.itemId === project.id && aiSuggestion?.bulletIdx === bulletIdx;
+                      {(project.bullets || [""]).map((bullet, bulletIdx) => {
+                        const isImproving = improvingIdx?.itemId === safeId && improvingIdx?.bulletIdx === bulletIdx;
+                        const hasSuggestion = aiSuggestion?.itemId === safeId && aiSuggestion?.bulletIdx === bulletIdx;
+                        const bulletText = typeof bullet === "string" ? bullet : "";
 
                         return (
                           <div key={bulletIdx} className="space-y-2">
                             <div className="flex gap-2">
                               <span className="text-zinc-500 text-sm mt-2.5 font-bold">&bull;</span>
                               <ClearableTextarea
-                                value={bullet}
-                                onChange={(e) => updateBullet(project.id, bulletIdx, e.target.value)}
-                                onClear={() => updateBullet(project.id, bulletIdx, "")}
+                                value={bulletText}
+                                onChange={(e) => updateBullet(safeId, bulletIdx, e.target.value)}
+                                onClear={() => updateBullet(safeId, bulletIdx, "")}
                                 placeholder="e.g. Integrated OpenRouter API to evaluate resume compliance"
                                 rows={2}
                                 className="flex-1 resize-none"
                               />
                               <div className="flex flex-col gap-1.5 justify-center">
                                 <button
-                                  onClick={() => handleImproveBullet(project.id, bulletIdx, bullet, project.title)}
-                                  disabled={isImproving || !bullet.trim()}
+                                  onClick={() => handleImproveBullet(safeId, bulletIdx, bulletText, project.title)}
+                                  disabled={isImproving || !bulletText.trim()}
                                   title="Improve with AI"
                                   className="
                                     p-2
@@ -397,7 +428,7 @@ export default function EditorProjects({ resume, setResume }: Props) {
                                   <Sparkles size={14} />
                                 </button>
                                 <button
-                                  onClick={() => removeBullet(project.id, bulletIdx)}
+                                  onClick={() => removeBullet(safeId, bulletIdx)}
                                   className="
                                     p-2
                                     rounded-lg

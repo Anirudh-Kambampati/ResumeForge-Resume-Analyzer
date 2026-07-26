@@ -82,11 +82,13 @@ export default function EditorCertifications({ resume, setResume }: Props) {
 
       <div className="space-y-4">
         {resume.certifications ? (
-          resume.certifications.map((cert) => {
-            const isExpanded = expandedId === cert.id;
+          resume.certifications.map((cert, index) => {
+            const safeId = cert.id || `cert-${index}-${Date.now()}`;
+            const isExpanded = expandedId === safeId;
+            const isEnabled = typeof cert.enabled === "boolean" ? cert.enabled : true;
             return (
               <div
-                key={cert.id}
+                key={safeId}
                 className="
                   rounded-xl
                   border
@@ -99,7 +101,7 @@ export default function EditorCertifications({ resume, setResume }: Props) {
               >
                 {/* Accordion Header */}
                 <div
-                  onClick={() => setExpandedId(isExpanded ? null : cert.id)}
+                  onClick={() => setExpandedId(isExpanded ? null : safeId)}
                   className="
                     flex
                     items-center
@@ -113,10 +115,10 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                   <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
-                      checked={cert.enabled}
+                      checked={isEnabled}
                       onChange={(e) => {
                         e.stopPropagation();
-                        updateField(cert.id, "enabled", e.target.checked);
+                        updateField(safeId, "enabled", e.target.checked);
                       }}
                       className="
                         h-4
@@ -141,7 +143,7 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeCertification(cert.id);
+                        removeCertification(safeId);
                       }}
                       className="
                         p-1.5
@@ -166,8 +168,8 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                         <label className="text-xs font-semibold text-zinc-400">Certification Title</label>
                         <ClearableInput
                           value={cert.title}
-                          onChange={(e) => updateField(cert.id, "title", e.target.value)}
-                          onClear={() => updateField(cert.id, "title", "")}
+                          onChange={(e) => updateField(safeId, "title", e.target.value)}
+                          onClear={() => updateField(safeId, "title", "")}
                           placeholder="e.g. AWS Certified Solutions Architect"
                         />
                       </div>
@@ -175,8 +177,8 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                         <label className="text-xs font-semibold text-zinc-400">Issuer</label>
                         <ClearableInput
                           value={cert.issuer}
-                          onChange={(e) => updateField(cert.id, "issuer", e.target.value)}
-                          onClear={() => updateField(cert.id, "issuer", "")}
+                          onChange={(e) => updateField(safeId, "issuer", e.target.value)}
+                          onClear={() => updateField(safeId, "issuer", "")}
                           placeholder="e.g. Amazon Web Services"
                         />
                       </div>
@@ -187,8 +189,8 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                         <label className="text-xs font-semibold text-zinc-400">Date Issued</label>
                         <ClearableInput
                           value={cert.date}
-                          onChange={(e) => updateField(cert.id, "date", e.target.value)}
-                          onClear={() => updateField(cert.id, "date", "")}
+                          onChange={(e) => updateField(safeId, "date", e.target.value)}
+                          onClear={() => updateField(safeId, "date", "")}
                           placeholder="e.g. 2024"
                         />
                       </div>
@@ -196,8 +198,8 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                         <label className="text-xs font-semibold text-zinc-400">Credential ID (Optional)</label>
                         <ClearableInput
                           value={cert.credentialId || ""}
-                          onChange={(e) => updateField(cert.id, "credentialId", e.target.value)}
-                          onClear={() => updateField(cert.id, "credentialId", "")}
+                          onChange={(e) => updateField(safeId, "credentialId", e.target.value)}
+                          onClear={() => updateField(safeId, "credentialId", "")}
                           placeholder="e.g. AWS-12345"
                         />
                       </div>

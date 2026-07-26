@@ -5,7 +5,7 @@
 // Layouts NEVER affect visual appearance — templates handle that.
 // ============================================================
 
-export type LayoutId = "ats" | "faang" | "research" | "custom";
+export type LayoutId = "ats" | "research" | "custom";
 
 export interface LayoutDefinition {
   id: LayoutId;
@@ -18,29 +18,17 @@ export const LAYOUTS: Record<LayoutId, LayoutDefinition> = {
   ats: {
     id: "ats",
     name: "ATS",
-    description: "Standard ATS-friendly ordering with About Me and Summary at the top.",
+    description: "Standard Jake's Resume ordering: Experience, Projects, Education, Skills.",
     sections: [
       "Experience",
       "Projects",
       "Education",
+      "Research",
       "Skills",
       "Certifications",
       "Achievements",
       "Languages",
-    ],
-  },
-  faang: {
-    id: "faang",
-    name: "FAANG",
-    description: "Optimized for software engineering with skills and projects before education.",
-    sections: [
-      "Experience",
-      "Projects",
-      "Skills",
-      "Education",
-      "Certifications",
-      "Achievements",
-      "Languages",
+      "Publications",
     ],
   },
   research: {

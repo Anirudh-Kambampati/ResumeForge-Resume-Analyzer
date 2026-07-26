@@ -114,9 +114,26 @@ async def run_import_pipeline(
 
     # ================================================================
     # Stage 2: Prompt Construction
+    #
+    # Augment extracted text with embedded hyperlinks from PDF annotations
+    # so the LLM can associate links with the correct project entries
+    # and prefer them over visible-text URLs when they disagree.
     # ================================================================
     stage_start = time.perf_counter()
-    prompts = build_parse_prompts(extraction.text)
+
+    llm_text = extraction.text
+    if extraction.embedded_links:
+        unique_urls = list(dict.fromkeys(link["url"] for link in extraction.embedded_links))
+        links_block = "\n".join(f"  [Embedded Hyperlink] {url}" for url in unique_urls)
+        llm_text += (
+            f"\n\n--- EMBEDDED PDF HYPERLINKS (clickable links in the document) ---\n"
+            f"{links_block}\n"
+            f"--- END EMBEDDED HYPERLINKS ---\n\n"
+            "Note: Where the visible text link and an embedded hyperlink disagree, "
+            "the embedded hyperlink is more reliable. Prefer it."
+        )
+
+    prompts = build_parse_prompts(llm_text)
     stage_timings["prompt"] = time.perf_counter() - stage_start
 
     # ================================================================

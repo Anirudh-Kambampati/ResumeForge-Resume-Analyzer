@@ -27,12 +27,38 @@ logger = logging.getLogger("resumeforge.pipeline.validator")
 
 KNOWN_PLATFORM_DOMAINS: List[str] = [
     "github.com",
+    "gitlab.com",
+    "bitbucket.org",
     "linkedin.com",
     "leetcode.com",
     "codeforces.com",
     "x.com",
     "twitter.com",
     "hackerrank.com",
+]
+
+# ============================================================
+# Known deployment / hosting platforms — project demos live here,
+# never in the profile portfolio field.
+# ============================================================
+
+KNOWN_DEPLOY_DOMAINS: List[str] = [
+    "vercel.app",
+    "netlify.app",
+    "netlify.com",
+    "pages.dev",
+    "render.com",
+    "fly.dev",
+    "railway.app",
+    "cyclic.app",
+    "replit.com",
+    "onrender.com",
+    "github.io",
+    "gitlab.io",
+    "herokuapp.com",
+    "pythonanywhere.com",
+    "streamlit.app",
+    "huggingface.co",
 ]
 
 
@@ -159,20 +185,84 @@ def validate_generated_claims(
 
 
 # ============================================================
-# Portfolio URL validation
+# Portfolio URL validation — strict classifier
+#
+# A URL is a genuine personal website ONLY if:
+#   1. Its hostname is NOT a known platform (GitHub, LinkedIn, etc.)
+#   2. Its hostname is NOT a known deployment platform (Vercel, Netlify, etc.)
+#   3. Its path does NOT look like a repository (github.com/user/repo)
+#   4. Its hostname does NOT contain common coding keywords
+#
+# Examples of valid personal websites:
+#   anirudh.dev, john-doe.com, portfolio.example.com
+#
+# Examples of NOT personal websites:
+#   github.com/anirudh/resumeforge (repo)
+#   resumeforge.vercel.app (deployment)
+#   github.com/anirudh (profile — handled by platform detection)
 # ============================================================
 
 
+def _looks_like_repo_url(url: str, hostname: str) -> bool:
+    """Check if a URL looks like a code repository rather than a personal website.
+
+    Heuristics:
+      - github.com/user/repo (path has 2+ segments)
+      - gitlab.com/user/repo (path has 2+ segments)
+      - bitbucket.org/user/repo (path has 2+ segments)
+      - Hostname contains 'github.io' with a path
+    """
+    _CODE_HOSTS = ["github.com", "gitlab.com", "bitbucket.org"]
+
+    if not any(h in hostname for h in _CODE_HOSTS):
+        return False
+
+    try:
+        parsed = urlparse(url)
+        path = parsed.path.strip("/")
+    except Exception:
+        return False
+
+    segments = path.split("/") if path else []
+    return len(segments) >= 2
+
+
 def is_likely_personal_website(url: str) -> bool:
-    """Return True if the URL is a genuine personal website, not a known platform."""
+    """Return True if the URL is a genuine personal website.
+
+    Strictly rejects:
+      - Known social/coding platforms (GitHub, LinkedIn, LeetCode, etc.)
+      - Known deployment platforms (Vercel, Netlify, Render, Railway, etc.)
+      - Repository URLs (github.com/user/repo, gitlab.io/user/repo, etc.)
+      - Hostnames containing common coding / project keywords
+    """
     lower = url.lower().strip()
     try:
         with_proto = lower if re.match(r"^https?://", lower) else f"https://{lower}"
         hostname = re.sub(r"^www\.", "", urlparse(with_proto).hostname or "")
+        parsed = urlparse(with_proto)
     except Exception:  # nosec
         return False
 
-    return hostname not in KNOWN_PLATFORM_DOMAINS
+    # Reject known platforms (GitHub, LinkedIn, LeetCode, etc.)
+    if hostname in KNOWN_PLATFORM_DOMAINS:
+        return False
+
+    # Reject known deployment / hosting platforms
+    if any(hostname.endswith(d) for d in KNOWN_DEPLOY_DOMAINS):
+        return False
+
+    # Reject URLs that look like code repositories
+    if _looks_like_repo_url(with_proto, hostname):
+        return False
+
+    # Reject URLs with common coding keywords in the hostname
+    _CODING_KEYWORDS = ["github", "gitlab", "bitbucket", "codesandbox", "codepen", "glitch"]
+    for kw in _CODING_KEYWORDS:
+        if kw in hostname:
+            return False
+
+    return True
 
 
 # ====================================================================

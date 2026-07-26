@@ -2,11 +2,17 @@ import { Resume } from "@/types/resume";
 import { type TemplateId } from "@/config/templates";
 
 // ============================================================
-// Resume Layout — Fixed per-template spacing & typography
+// Resume Layout — Base spacing & typography
 //
-// Each template defines one clean set of layout values.
-// No adaptive spacing. No pressure scores. No interpolation.
-// The renderer consumes these values directly.
+// The Auto Fit engine (autoFitEngine.ts) applies progressive
+// compression on top of BASE_LAYOUT to fit content on one page.
+// Both Preview (HTML) and PDF (react-pdf) consume the same
+// layout values so they produce identical results.
+//
+// IMPORTANT: All three templates share BASE_LAYOUT.
+// Template visual identity comes from TemplateStyles
+// (font weights, size multipliers, letter-spacing, border styles)
+// — never from different spacing values.
 // ============================================================
 
 export interface ResumeLayout {
@@ -21,6 +27,12 @@ export interface ResumeLayout {
   titleLetterSpacing: number;
   contactFontSize: number;
   contactRowGap: number;
+
+  // Column layout (two-column templates)
+  columnGap: number;
+  columnWidthLeft: number;  // fraction (e.g. 0.65 = 65%)
+  columnWidthRight: number; // fraction (e.g. 0.35 = 35%)
+
   sectionMarginTop: number;
   sectionHeaderFontSize: number;
   sectionHeaderBorderWidth: number;
@@ -73,140 +85,80 @@ export interface ResumeLayout {
 // the page-overflow bug that was fixed by removing the engine.
 // ============================================================
 
-// ============================================================
-// BASE_LAYOUT — restored to match the last known working
-// renderer (commit b67aa7a). Every value here reproduces
-// the original inline-spacing object that produced correct
-// single-page PDF output for all templates.
-//
-// Reference (old working renderer):
-//   const spacing = {
-//     page: 32, headerBottom: 8, section: 7,
-//     headingDivider: 2, dividerContent: 4,
-//     entry: 4, metadata: 1, bullets: 2,
-//     bulletGap: 1, certGap: 12
-//   };
-// ============================================================
-
-const BASE_LAYOUT: ResumeLayout = {
-  // Page & header
-  pagePadding: 15,
-  headerPaddingBottom: 6,
-  nameFontSize: 26,
-  nameLineHeight: 1.0,
-  nameMarginBottom: 8.5,
-  titleFontSize: 11,
+export const BASE_LAYOUT: ResumeLayout = {
+  // Page & header — reduced padding & spacing for higher content density
+  pagePadding: 32,
+  headerPaddingBottom: 2,
+  nameFontSize: 22,
+  nameLineHeight: 1.1,
+  nameMarginBottom: 2.0,
+  titleFontSize: 10.5,
   titleMarginTop: 0,
-  titleMarginBottom: 2.5,
-  titleLetterSpacing: 1.2,
+  titleMarginBottom: 1.0,
+  titleLetterSpacing: 0,
   contactFontSize: 8.5,
-  contactRowGap: 4,
+  contactRowGap: 3.5,
 
-  // Sections
-  sectionMarginTop: 5.0,
-  sectionHeaderFontSize: 9.25,
+  // Column layout (inert for single-column templates)
+  columnGap: 0,
+  columnWidthLeft: 1,
+  columnWidthRight: 0,
+
+  // Sections — tighter gaps
+  sectionMarginTop: 4.5,
+  sectionHeaderFontSize: 10,
   sectionHeaderBorderWidth: 0.65,
   sectionHeaderPaddingBottom: 1.5,
-  sectionHeaderMarginBottom: 7.0,
-  sectionHeaderLetterSpacing: 0.6,
+  sectionHeaderMarginBottom: 4.5,
+  sectionHeaderLetterSpacing: 0,
 
   // Entry spacing
-  entryGap: 5.0,
-  entryTitleFontSize: 9.0,
+  entryGap: 4.5,
+  entryTitleFontSize: 9.5,
   entryTitleLineHeight: 1.2,
-  entrySubtitleFontSize: 9.25,
-  entryMetaFontSize: 8.5,
+  entrySubtitleFontSize: 10,
+  entryMetaFontSize: 9,
 
-  // Bullets
-  bulletListMarginTop: 2.5,
-  bulletListPaddingLeft: 8,
-  bulletGap: 1.0,
-  bulletFontSize: 9.0,
+  // Bullets — tighter
+  bulletListMarginTop: 1.0,
+  bulletListPaddingLeft: 14,
+  bulletGap: 0.8,
+  bulletFontSize: 9.5,
   bulletLineHeight: 1.3,
 
   // Body / summary text
-  bodyTextFontSize: 9.5,
+  bodyTextFontSize: 10,
   bodyTextLineHeight: 1.3,
   bodyTextMarginTop: 0,
 
-  // Skills
-  skillsMarginTop: 1.5,
-  skillsItemFontSize: 9.0,
-  skillsItemLineHeight: 1.2,
-  skillsItemMarginBottom: 0.75,
+  // Skills — compact
+  skillsMarginTop: 1.0,
+  skillsItemFontSize: 9.5,
+  skillsItemLineHeight: 1.3,
+  skillsItemMarginBottom: 0.8,
 
   // Achievements
-  achievementsListMarginTop: 2.0,
-  achievementsPaddingLeft: 7,
-  achievementsItemFontSize: 9.0,
-  achievementsItemLineHeight: 1.2,
-  achievementsItemMarginBottom: 0.75,
+  achievementsListMarginTop: 1.0,
+  achievementsPaddingLeft: 14,
+  achievementsItemFontSize: 9.5,
+  achievementsItemLineHeight: 1.3,
+  achievementsItemMarginBottom: 0.8,
 
   // Certifications
   certificationsMarginTop: 0,
-  certificationsGap: 8,
-  certificationsItemFontSize: 8.5,
-  certificationsItemLineHeight: 1.2,
+  certificationsGap: 5,
+  certificationsItemFontSize: 9.5,
+  certificationsItemLineHeight: 1.3,
 
   // Languages
   languagesMarginTop: 0,
-  languagesGap: 5,
-  languagesItemFontSize: 8.5,
-  languagesItemLineHeight: 1.2,
+  languagesGap: 4,
+  languagesItemFontSize: 9.5,
+  languagesItemLineHeight: 1.3,
 };
 
 const TEMPLATE_LAYOUTS: Record<TemplateId, ResumeLayout> = {
-  ats: {
-    ...BASE_LAYOUT,
-    // Professional ATS layout: wider margins, clean typography,
-    // controlled breathing room — compact but not cramped
-    pagePadding: 36,
-    headerPaddingBottom: 5,
-    nameFontSize: 20,
-    nameMarginBottom: 3.5,
-    titleFontSize: 10,
-    titleMarginTop: 0,
-    titleMarginBottom: 1.5,
-    contactFontSize: 8,
-    contactRowGap: 3.5,
-    sectionMarginTop: 4.5,
-    sectionHeaderFontSize: 10,
-    sectionHeaderBorderWidth: 0.65,
-    sectionHeaderPaddingBottom: 1.5,
-    sectionHeaderMarginBottom: 5.5,
-    sectionHeaderLetterSpacing: 0.0,
-    entryGap: 4.5,
-    entryTitleFontSize: 9.5,
-    entryTitleLineHeight: 1.2,
-    entrySubtitleFontSize: 9.5,
-    entryMetaFontSize: 8.5,
-    bulletListMarginTop: 2.0,
-    bulletListPaddingLeft: 12,
-    bulletGap: 1.0,
-    bulletFontSize: 9.0,
-    bulletLineHeight: 1.3,
-    bodyTextFontSize: 9.5,
-    bodyTextLineHeight: 1.3,
-    bodyTextMarginTop: 0,
-    skillsMarginTop: 1.5,
-    skillsItemFontSize: 9.0,
-    skillsItemLineHeight: 1.2,
-    skillsItemMarginBottom: 0.75,
-    achievementsListMarginTop: 2.0,
-    achievementsPaddingLeft: 12,
-    achievementsItemFontSize: 9.0,
-    achievementsItemLineHeight: 1.3,
-    achievementsItemMarginBottom: 0.75,
-    certificationsMarginTop: 0,
-    certificationsGap: 6,
-    certificationsItemFontSize: 9.0,
-    certificationsItemLineHeight: 1.2,
-    languagesMarginTop: 0,
-    languagesGap: 4,
-    languagesItemFontSize: 9.0,
-    languagesItemLineHeight: 1.2,
-  },
-  faang: { ...BASE_LAYOUT },
+  ats: { ...BASE_LAYOUT },
   research: { ...BASE_LAYOUT },
 };
 

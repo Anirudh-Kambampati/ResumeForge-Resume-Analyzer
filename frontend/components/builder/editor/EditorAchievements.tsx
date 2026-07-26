@@ -132,11 +132,13 @@ export default function EditorAchievements({ resume, setResume }: Props) {
       </div>
 
       <div className="space-y-4">
-        {resume.achievements.map((ach) => {
-          const isExpanded = expandedId === ach.id;
+        {resume.achievements.map((ach, index) => {
+          const safeId = ach.id || `ach-${index}-${Date.now()}`;
+          const isExpanded = expandedId === safeId;
+          const isEnabled = typeof ach.enabled === "boolean" ? ach.enabled : true;
           return (
             <div
-              key={ach.id}
+              key={safeId}
               className="
                 rounded-xl
                 border
@@ -149,7 +151,7 @@ export default function EditorAchievements({ resume, setResume }: Props) {
             >
               {/* Accordion Header */}
               <div
-                onClick={() => setExpandedId(isExpanded ? null : ach.id)}
+                onClick={() => setExpandedId(isExpanded ? null : safeId)}
                 className="
                   flex
                   items-center
@@ -163,10 +165,10 @@ export default function EditorAchievements({ resume, setResume }: Props) {
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
-                    checked={ach.enabled}
+                    checked={isEnabled}
                     onChange={(e) => {
                       e.stopPropagation();
-                      updateField(ach.id, "enabled", e.target.checked);
+                      updateField(safeId, "enabled", e.target.checked);
                     }}
                     className="
                       h-4
@@ -188,7 +190,7 @@ export default function EditorAchievements({ resume, setResume }: Props) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeAchievement(ach.id);
+                      removeAchievement(safeId);
                     }}
                     className="
                       p-1.5
@@ -212,8 +214,8 @@ export default function EditorAchievements({ resume, setResume }: Props) {
                     <label className="text-xs font-semibold text-zinc-400">Achievement Title</label>
                     <ClearableInput
                       value={ach.title}
-                      onChange={(e) => updateField(ach.id, "title", e.target.value)}
-                      onClear={() => updateField(ach.id, "title", "")}
+                      onChange={(e) => updateField(safeId, "title", e.target.value)}
+                      onClear={() => updateField(safeId, "title", "")}
                       placeholder="e.g. Winner - National Hackathon"
                     />
                   </div>
@@ -223,16 +225,16 @@ export default function EditorAchievements({ resume, setResume }: Props) {
                     <div className="flex gap-2">
                       <ClearableTextarea
                         value={ach.description}
-                        onChange={(e) => updateField(ach.id, "description", e.target.value)}
-                        onClear={() => updateField(ach.id, "description", "")}
+                        onChange={(e) => updateField(safeId, "description", e.target.value)}
+                        onClear={() => updateField(safeId, "description", "")}
                         placeholder="e.g. Won first place among 250+ teams for building an AI productivity platform."
                         rows={3}
                         className="resize-y"
                       />
                       <div className="flex flex-col gap-1.5 justify-start">
                         <button
-                          onClick={() => handleImproveAchievement(ach.id, ach.description, ach.title)}
-                          disabled={improvingId === ach.id || !ach.description.trim()}
+                          onClick={() => handleImproveAchievement(safeId, ach.description, ach.title)}
+                          disabled={improvingId === safeId || !ach.description.trim()}
                           title="Refine Achievement"
                           className="
                             p-2
@@ -254,11 +256,11 @@ export default function EditorAchievements({ resume, setResume }: Props) {
                       </div>
                     </div>
 
-                    {improvingId === ach.id && (
+                    {improvingId === safeId && (
                       <p className="text-xs text-blue-400 animate-pulse pt-1">Refining achievement with AI...</p>
                     )}
 
-                    {aiSuggestion?.id === ach.id && (
+                    {aiSuggestion?.id === safeId && (
                       <div className="mt-2 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-semibold text-blue-400 flex items-center gap-1">

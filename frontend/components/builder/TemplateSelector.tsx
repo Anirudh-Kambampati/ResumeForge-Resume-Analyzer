@@ -5,7 +5,6 @@ import { type TemplateId } from "@/config/templates";
 
 const OPTIONS: { id: TemplateId; label: string }[] = [
   { id: "ats", label: "ATS" },
-  { id: "faang", label: "FAANG" },
   { id: "research", label: "Research" },
 ];
 

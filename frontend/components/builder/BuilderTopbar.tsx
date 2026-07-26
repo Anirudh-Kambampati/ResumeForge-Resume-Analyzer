@@ -6,11 +6,13 @@ import {
   CloudCheck,
   CloudLightning,
   Loader2,
+  Upload,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { pdf } from "@react-pdf/renderer";
 import { ResumePDFDocument } from "./preview/ResumePDFDocument";
 import { useResumeStore } from "@/store/resumeStore";
+import { useResumeImport } from "@/lib/useResumeImport";
 
 type Props = {
   resetResume: () => void;
@@ -18,20 +20,110 @@ type Props = {
   fullName?: string;
 };
 
+// ============================================================
+// Simple inline toast — uses global CSS animation classes.
+// ============================================================
+
+function Toast({
+  message,
+  type,
+}: {
+  message: string;
+  type: "success" | "error";
+}) {
+  return (
+    <div
+      className={`toast-slide-in pointer-events-auto flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm shadow-lg backdrop-blur-xl ${
+        type === "success"
+          ? "border-green-500/20 bg-green-500/10 text-green-300"
+          : "border-red-500/20 bg-red-500/10 text-red-300"
+      }`}
+    >
+      {type === "success" ? (
+        <CloudCheck size={16} className="shrink-0" />
+      ) : (
+        <CloudLightning size={16} className="shrink-0" />
+      )}
+      {message}
+    </div>
+  );
+}
+
 export default function BuilderTopbar({
   resetResume,
   saveStatus,
   fullName,
 }: Props) {
   const resume = useResumeStore((state) => state.resume);
+
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // Shared import hook — handles file validation, upload, and store update
+  const {
+    status: importStatus,
+    fileName: importFileName,
+    errorMessage: importError,
+    importFile,
+    reset: resetImport,
+    inputRef,
+    handleFileInputChange,
+  } = useResumeImport();
+
+  // Toast state
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error";
+    key: number;
+  } | null>(null);
+  const toastKeyRef = useRef(0);
+
+  const showToast = useCallback(
+    (message: string, type: "success" | "error") => {
+      toastKeyRef.current += 1;
+      setToast({ message, type, key: toastKeyRef.current });
+      setTimeout(() => setToast(null), 4000);
+    },
+    [],
+  );
+
+  // React to import status changes and show toasts
+  const prevStatusRef = useRef(importStatus);
+  if (importStatus !== prevStatusRef.current) {
+    prevStatusRef.current = importStatus;
+    if (importStatus === "success") {
+      showToast(`"${importFileName}" imported successfully.`, "success");
+    } else if (importStatus === "error") {
+      showToast(importError || "Import failed. Please try again.", "error");
+    }
+  }
+
+  const handleImportClick = useCallback(() => {
+    // Confirm if user has existing content
+    const hasContent =
+      resume.profile?.fullName ||
+      resume.experience?.length > 0 ||
+      resume.education?.length > 0;
+
+    if (
+      hasContent &&
+      !window.confirm(
+        "Importing a new resume will replace all current content. Continue?",
+      )
+    ) {
+      return;
+    }
+
+    // Reset previous import state before opening file picker
+    resetImport();
+    inputRef.current?.click();
+  }, [resume, resetImport, inputRef]);
 
   const handleDownload = async () => {
     try {
       setIsDownloading(true);
 
       const pdfBlob = await pdf(
-        <ResumePDFDocument resume={resume} />
+        <ResumePDFDocument resume={resume} />,
       ).toBlob();
 
       const safeName = (fullName || "Resume")
@@ -43,7 +135,7 @@ export default function BuilderTopbar({
       if ((window.navigator as any).msSaveOrOpenBlob) {
         (window.navigator as any).msSaveOrOpenBlob(
           pdfBlob,
-          `${safeName}.pdf`
+          `${safeName}.pdf`,
         );
         return;
       }
@@ -103,9 +195,7 @@ export default function BuilderTopbar({
                 className="text-yellow-500 animate-pulse"
                 size={14}
               />
-              <span className="text-zinc-400 font-medium">
-                Saving...
-              </span>
+              <span className="text-zinc-400 font-medium">Saving...</span>
             </>
           )}
         </div>
@@ -113,6 +203,45 @@ export default function BuilderTopbar({
 
       {/* Right */}
       <div className="flex items-center gap-3">
+        {/* Hidden file input — wired through the shared hook */}
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf"
+          className="hidden"
+          onChange={handleFileInputChange}
+        />
+
+        {/* Import button */}
+        <button
+          onClick={handleImportClick}
+          disabled={importStatus === "loading"}
+          className="
+            flex
+            items-center
+            gap-2
+            rounded-xl
+            border
+            border-white/10
+            bg-white/[0.03]
+            px-4
+            py-2
+            text-sm
+            text-zinc-300
+            transition
+            hover:bg-white/[0.06]
+            hover:text-white
+            disabled:opacity-50
+            disabled:cursor-not-allowed
+          "
+        >
+          {importStatus === "loading" ? (
+            <Loader2 className="animate-spin" size={16} />
+          ) : (
+            <Upload size={16} />
+          )}
+          {importStatus === "loading" ? "Importing..." : "Import"}
+        </button>
 
         <button
           onClick={resetResume}
@@ -167,6 +296,11 @@ export default function BuilderTopbar({
 
           {isDownloading ? "Generating..." : "Download PDF"}
         </button>
+      </div>
+
+      {/* Toast notifications */}
+      <div className="toast-container">
+        {toast && <Toast message={toast.message} type={toast.type} />}
       </div>
     </header>
   );

@@ -14,6 +14,8 @@ from services.jd_service import calculate_job_match
 from services.llm_client import LLMClient
 from services.validator import clean_and_parse_json, validate_generated_claims
 from services.import_service import run_import_pipeline
+from services.extractor import extract_text_from_pdf, ExtractionResult
+from services.ats_service import run_ats_optimization
 
 # -------------------------------------------------------------------
 # Logging infrastructure — stage-level granularity
@@ -471,3 +473,89 @@ async def improve_text(req: ImproveRequest):
         return parsed_json
 
     return parsed_json
+
+
+# -------------------------------------------------------------------
+# /api/ats/optimize — ATS optimization layer
+#
+# Takes extracted resume text and returns structured data matching
+# the frontend Resume type, with ATS-friendly cleaning:
+#   - Removes extraction artifacts ("envelop~" before emails, etc.)
+#   - Normalizes formatting and categorizes links
+#   - Preserves all original content — no fabrication
+#   - Output matches frontend types/resume.ts exactly
+# -------------------------------------------------------------------
+
+
+@app.post("/api/ats/optimize")
+async def ats_optimize_resume(resume: UploadFile = File(...)):
+    """Upload a PDF resume and receive ATS-optimized structured data.
+
+    The ATS optimization layer:
+      1. EXTRACT text from PDF
+      2. BUILD ATS-optimized prompts
+      3. LLM parses and cleans the text
+      4. POST-PROCESS: clean artifacts, normalize links, validate
+
+    Returns data matching the frontend Resume type format:
+      profile (with categorized links), summary, experience,
+      education, skills, projects, achievements, certifications,
+      languages, research, publications.
+
+    No builder fields (id, enabled, template, layout, sectionOrder).
+    """
+    if not resume.filename or not resume.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF resume uploads are supported.")
+
+    api_key, model = get_openrouter_config()
+    llm_client = LLMClient.from_env(api_key, model)
+    if llm_client is None:
+        raise HTTPException(
+            status_code=500,
+            detail="OPENROUTER_API_KEY is not configured on the backend server. "
+            "Please verify the .env configuration.",
+        )
+
+    pdf_bytes = await resume.read()
+    if not pdf_bytes:
+        raise HTTPException(status_code=400, detail="The uploaded PDF file is empty.")
+
+    # Extract text from PDF
+    try:
+        extraction = extract_text_from_pdf(pdf_bytes, resume.filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    if extraction.is_empty():
+        raise HTTPException(
+            status_code=400,
+            detail="Could not extract text from the PDF. "
+            "The file may be scanned or image-based. "
+            "Please upload a text-based PDF.",
+        )
+
+    # Augment text with embedded hyperlinks so the LLM sees both
+    llm_text = extraction.text
+    if extraction.embedded_links:
+        unique_urls = list(dict.fromkeys(link["url"] for link in extraction.embedded_links))
+        links_block = "\n".join(f"  [Embedded Hyperlink] {url}" for url in unique_urls)
+        llm_text += (
+            f"\n\n--- EMBEDDED PDF HYPERLINKS (clickable links in the document) ---\n"
+            f"{links_block}\n"
+            f"--- END EMBEDDED HYPERLINKS ---\n\n"
+            "Note: Where the visible text link and an embedded hyperlink disagree, "
+            "the embedded hyperlink is more reliable. Prefer it."
+        )
+
+    # Run ATS optimization
+    result = await run_ats_optimization(
+        extracted_text=llm_text,
+        llm_client=llm_client,
+    )
+
+    logger.info(
+        "[ATS-ENDPOINT] Optimization complete | sections=%s",
+        [k for k, v in result.items() if v],
+    )
+
+    return result

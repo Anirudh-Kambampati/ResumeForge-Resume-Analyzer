@@ -5,7 +5,7 @@
 // Templates NEVER affect resume data.
 // ============================================================
 
-export type TemplateId = "ats" | "faang" | "research";
+export type TemplateId = "ats" | "research";
 
 export interface TemplateDefinition {
   id: TemplateId;
@@ -18,14 +18,8 @@ export const TEMPLATES: Record<TemplateId, TemplateDefinition> = {
   ats: {
     id: "ats",
     name: "ATS",
-    description: "Compact, conservative, maximum ATS compatibility. No decorative elements.",
+    description: "Single-column, black-and-white, maximum ATS compatibility. Inspired by classic Jake's Resume.",
     icon: "📄",
-  },
-  faang: {
-    id: "faang",
-    name: "FAANG",
-    description: "Polished software engineering layout. Stronger typography, better whitespace.",
-    icon: "💻",
   },
   research: {
     id: "research",
@@ -55,9 +49,9 @@ export interface TemplateStyles {
   /** Section heading styling */
   sectionHeaderFontWeight: 400 | 500 | 600 | 700;
   sectionHeaderLetterSpacing: number;
-  sectionHeaderBorderWidth: number; // overrides L.sectionHeaderBorderWidth
+  sectionHeaderBorderWidth: number; // overrides L.sectionHeaderBorderWidth (0 = no border)
   sectionHeaderTransform: "uppercase" | "none";
-  sectionHeaderBorderStyle: "solid" | "double";
+  sectionHeaderBorderStyle: "solid" | "double" | "none";
 
   /** Entry title styling */
   entryTitleFontWeight: 400 | 500 | 600 | 700;
@@ -66,39 +60,22 @@ export interface TemplateStyles {
 
 export const TEMPLATE_STYLES: Record<TemplateId, TemplateStyles> = {
   // ============================================================
-  // ATS — Maximum ATS compatibility
-  // - Conservative weights, thin dividers, compact feel
+  // ATS — Jake's Resume-inspired (classic single-column)
+  // - Title Case headings, thin dividers, compact spacing
+  // - No decorative elements — plain, scannable, ATS-friendly
   // ============================================================
   ats: {
     nameFontWeight: 700,
     nameSizeMultiplier: 1.0,
-    titleFontWeight: 500,
+    titleFontWeight: 600,
     titleLetterSpacing: 0.0,
     sectionHeaderFontWeight: 700,
     sectionHeaderLetterSpacing: 0.0,
-    sectionHeaderBorderWidth: 0.75,
-    sectionHeaderTransform: "uppercase",
-    sectionHeaderBorderStyle: "solid",
-    entryTitleFontWeight: 600,
-    entrySubtitleFontWeight: 400,
-  },
-
-  // ============================================================
-  // FAANG — Polished tech resume
-  // - Bolder name, stronger hierarchy, wider letter-spacing
-  // ============================================================
-  faang: {
-    nameFontWeight: 700,
-    nameSizeMultiplier: 1.05,
-    titleFontWeight: 500,
-    titleLetterSpacing: 2.5,
-    sectionHeaderFontWeight: 700,
-    sectionHeaderLetterSpacing: 1.5,
-    sectionHeaderBorderWidth: 1.5,
-    sectionHeaderTransform: "uppercase",
+    sectionHeaderBorderWidth: 0.5,
+    sectionHeaderTransform: "none",
     sectionHeaderBorderStyle: "solid",
     entryTitleFontWeight: 700,
-    entrySubtitleFontWeight: 600,
+    entrySubtitleFontWeight: 400,
   },
 
   // ============================================================
@@ -121,6 +98,6 @@ export const TEMPLATE_STYLES: Record<TemplateId, TemplateStyles> = {
   },
 };
 
-export function getTemplateStyles(templateId: TemplateId): TemplateStyles {
-  return TEMPLATE_STYLES[templateId];
+export function getTemplateStyles(templateId?: TemplateId | null): TemplateStyles {
+  return (templateId ? TEMPLATE_STYLES[templateId] : undefined) ?? TEMPLATE_STYLES.ats;
 }

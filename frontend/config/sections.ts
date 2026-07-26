@@ -13,16 +13,16 @@ export interface SectionInfo {
 }
 
 export const ALL_SECTIONS: SectionInfo[] = [
-  { id: "Profile", label: "Profile", heading: "" },
-  { id: "Experience", label: "Experience", heading: "EXPERIENCE" },
-  { id: "Education", label: "Education", heading: "EDUCATION" },
-  { id: "Projects", label: "Projects", heading: "PROJECTS" },
-  { id: "Research", label: "Research", heading: "RESEARCH" },
-  { id: "Publications", label: "Publications", heading: "PUBLICATIONS" },
-  { id: "Skills", label: "Skills", heading: "SKILLS" },
-  { id: "Achievements", label: "Achievements", heading: "ACHIEVEMENTS" },
-  { id: "Certifications", label: "Certifications", heading: "CERTIFICATIONS" },
-  { id: "Languages", label: "Languages", heading: "LANGUAGES" },
+  { id: "Profile", label: "Profile", heading: "Profile" },
+  { id: "Experience", label: "Experience", heading: "Experience" },
+  { id: "Education", label: "Education", heading: "Education" },
+  { id: "Projects", label: "Projects", heading: "Projects" },
+  { id: "Research", label: "Research", heading: "Research" },
+  { id: "Publications", label: "Publications", heading: "Publications" },
+  { id: "Skills", label: "Skills", heading: "Skills" },
+  { id: "Achievements", label: "Achievements", heading: "Achievements" },
+  { id: "Certifications", label: "Certifications", heading: "Certifications" },
+  { id: "Languages", label: "Languages", heading: "Languages" },
 ];
 
 // ============================================================
