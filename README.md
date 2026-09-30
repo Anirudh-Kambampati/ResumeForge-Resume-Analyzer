@@ -34,6 +34,8 @@ Whether you're a student applying for internships, a software engineer targeting
 - ATS-friendly layouts
 - Automatic pagination
 - Export as PDF
+- Import an existing resume (PDF or DOCX)
+- Reorder entries within every section
 
 ---
 
@@ -45,6 +47,7 @@ Whether you're a student applying for internships, a software engineer targeting
 - Keyword optimization
 - Grammar & writing suggestions
 - Actionable improvement tips
+- Analyze directly from the builder and apply rewritten bullets in one click
 
 ---
 
@@ -82,7 +85,7 @@ Whether you're a student applying for internships, a software engineer targeting
 
 - FastAPI
 - Python
-- OpenRouter
+- Groq (free tier), with OpenRouter free models as fallback
 - Pydantic
 
 ## AI
@@ -134,6 +137,20 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
+Copy `backend/.env.example` to `backend/.env` and add a free [Groq API key](https://console.groq.com/keys) (`GROQ_API_KEY`) and/or an [OpenRouter key](https://openrouter.ai/keys) (`OPENROUTER_API_KEY`). Only free models are used.
+
+---
+
+## Run both together
+
+After installing both parts, start the backend and frontend with one command from the repo root:
+
+```bash
+npm run dev:all
+```
+
+The app runs at http://localhost:3000 and the API at http://localhost:8000. Ctrl+C stops both.
+
 ---
 
 # 📈 Roadmap
@@ -145,9 +162,8 @@ uvicorn main:app --reload
 - [x] Multiple Templates
 - [x] Responsive Design
 - [x] PDF Export
-- [ ] Builder Analyzer Sync
-- [ ] Importing Existing Resume
-- [ ] Cover Letter Generator
+- [x] Builder Analyzer Sync
+- [x] Importing Existing Resume
 
 ---
 

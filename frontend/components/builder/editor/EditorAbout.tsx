@@ -244,7 +244,7 @@ export default function EditorAbout({ resume, setResume }: Props) {
                     updateTitles(next);
                   }}
                   placeholder="e.g. Software Engineer"
-                  className="w-full rounded-lg border border-white/10 bg-[#141416] px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full rounded-lg border border-white/10 bg-card px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
               <button
@@ -318,7 +318,7 @@ export default function EditorAbout({ resume, setResume }: Props) {
                       updateLink(label, val);
                     }}
                     placeholder={platform.placeholder}
-                    className={`w-full rounded-lg border border-white/10 bg-[#141416] py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
+                    className={`w-full rounded-lg border border-white/10 bg-card py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
                       hasValue ? "pr-8 px-3" : "px-3"
                     }`}
                   />
@@ -363,7 +363,7 @@ export default function EditorAbout({ resume, setResume }: Props) {
                     value={link.url || ""}
                     onChange={(e) => updateLink(link.label, e.target.value)}
                     placeholder="url..."
-                    className={`w-full rounded-lg border border-white/10 bg-[#141416] py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
+                    className={`w-full rounded-lg border border-white/10 bg-card py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
                       hasValue ? "pr-8 px-3" : "px-3"
                     }`}
                   />
@@ -404,12 +404,12 @@ export default function EditorAbout({ resume, setResume }: Props) {
               value={customLinkLabel}
               onChange={(e) => setCustomLinkLabel(e.target.value)}
               placeholder="Platform name..."
-              className="flex-1 rounded-lg border border-white/10 bg-[#141416] px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="flex-1 rounded-lg border border-white/10 bg-card px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               onKeyDown={(e) => e.key === "Enter" && addCustomLink()}
             />
             <button
               onClick={addCustomLink}
-              className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-blue-500"
+              className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-on-accent transition hover:bg-blue-500"
             >
               Add
             </button>
@@ -449,7 +449,7 @@ export default function EditorAbout({ resume, setResume }: Props) {
               onChange={(e) => toggleSummary(e.target.checked)}
               className="sr-only peer"
             />
-            <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:start-[1px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-[18px] after:w-[18px] after:transition-all peer-checked:bg-blue-600 peer-checked:after:bg-white"></div>
+            <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:start-[1px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-[18px] after:w-[18px] after:transition-all peer-checked:bg-blue-600 peer-checked:after:bg-paper"></div>
             <span className="ml-2.5 text-xs font-medium text-zinc-500">
               {resume.summary?.enabled ? "On" : "Off"}
             </span>
@@ -481,7 +481,7 @@ export default function EditorAbout({ resume, setResume }: Props) {
               <button
                 onClick={handleImproveSummary}
                 disabled={summaryLoading || !summaryText.trim()}
-                className="flex items-center gap-2 rounded-xl bg-blue-600/10 border border-blue-500/20 px-4 py-2 text-sm font-medium text-blue-400 transition hover:bg-blue-600 hover:text-white disabled:opacity-40 disabled:hover:bg-blue-600/10 disabled:hover:text-blue-400"
+                className="flex items-center gap-2 rounded-xl bg-blue-600/10 border border-blue-500/20 px-4 py-2 text-sm font-medium text-blue-400 transition hover:bg-blue-600 hover:text-on-accent disabled:opacity-40 disabled:hover:bg-blue-600/10 disabled:hover:text-blue-400"
               >
                 <Sparkles size={14} />
                 {summaryLoading ? "Improving..." : "Improve with AI"}
@@ -513,7 +513,7 @@ export default function EditorAbout({ resume, setResume }: Props) {
                         updateSummary(summarySuggestion);
                         setSummarySuggestion(null);
                       }}
-                      className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-500"
+                      className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-on-accent transition hover:bg-blue-500"
                     >
                       <Check size={12} />
                       Apply

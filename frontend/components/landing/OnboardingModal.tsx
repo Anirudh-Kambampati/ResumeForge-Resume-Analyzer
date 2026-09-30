@@ -96,7 +96,7 @@ export default function OnboardingModal({ isOpen, onClose }: Props) {
 
           {/* Modal */}
           <motion.div
-            className="relative z-10 w-full max-w-2xl rounded-3xl border border-white/[0.06] bg-[#0C0C0E] p-8 shadow-2xl shadow-black/50 sm:p-10"
+            className="relative z-10 w-full max-w-2xl rounded-3xl border border-white/[0.06] bg-panel p-8 shadow-2xl shadow-black/50 sm:p-10"
             variants={modalVariants}
             initial="hidden"
             animate="visible"
@@ -157,7 +157,7 @@ export default function OnboardingModal({ isOpen, onClose }: Props) {
                   Start with a blank ATS-friendly resume.
                 </p>
 
-                <span className="mt-auto inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition-all duration-300 group-hover:bg-blue-500 shadow-lg shadow-blue-600/10">
+                <span className="mt-auto inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-on-accent transition-all duration-300 group-hover:bg-blue-500 shadow-lg shadow-blue-600/10">
                   Start Building
                   <svg
                     width="14"

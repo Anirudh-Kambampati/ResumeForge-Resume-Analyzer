@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { normalizeError } from "@/lib/errorHelper";
 import { API_BASE_URL, apiHeaders, toApiError } from "@/lib/api";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 import { isSupportedResumeFile, RESUME_ACCEPT_ATTRIBUTE } from "@/lib/useResumeImport";
 
 interface Suggestion {
@@ -159,10 +160,10 @@ export default function AnalyzerPage() {
   };
 
   return (
-    <main id="analyzer-workspace" className="min-h-screen bg-[#09090B] text-zinc-100 pb-20">
+    <main id="analyzer-workspace" className="min-h-screen bg-app text-zinc-100 pb-20">
       
       {/* Header Bar */}
-      <header className="flex h-16 items-center justify-between border-b border-white/10 bg-[#09090B]/80 backdrop-blur px-8 sticky top-0 z-50">
+      <header className="flex h-16 items-center justify-between border-b border-white/10 bg-app/80 backdrop-blur px-8 sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <Link
             href="/"
@@ -175,27 +176,30 @@ export default function AnalyzerPage() {
             <p className="text-xs text-zinc-500">Scan compliance against job details</p>
           </div>
         </div>
-        <Link
-          href="/builder"
-          className="
-            flex
-            items-center
-            gap-1.5
-            rounded-xl
-            border
-            border-white/10
-            bg-white/[0.03]
-            px-4
-            py-2
-            text-sm
-            font-medium
-            transition
-            hover:bg-white/[0.06]
-          "
-        >
-          Resume Builder
-          <ArrowRight size={14} />
-        </Link>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <Link
+            href="/builder"
+            className="
+              flex
+              items-center
+              gap-1.5
+              rounded-xl
+              border
+              border-white/10
+              bg-white/[0.03]
+              px-4
+              py-2
+              text-sm
+              font-medium
+              transition
+              hover:bg-white/[0.06]
+            "
+          >
+            Resume Builder
+            <ArrowRight size={14} />
+          </Link>
+        </div>
       </header>
 
       {/* Main Workspace Container */}
@@ -209,7 +213,7 @@ export default function AnalyzerPage() {
             <div className="space-y-6">
               
               {/* File Upload Block */}
-              <div className="bg-[#0C0C0E] border border-white/10 rounded-2xl p-6">
+              <div className="bg-panel border border-white/10 rounded-2xl p-6">
                 <h3 className="text-md font-semibold text-white mb-4">1. Upload Resume</h3>
                 
                 <div
@@ -262,7 +266,7 @@ export default function AnalyzerPage() {
               </div>
 
               {/* Job Description Block */}
-              <div className="bg-[#0C0C0E] border border-white/10 rounded-2xl p-6">
+              <div className="bg-panel border border-white/10 rounded-2xl p-6">
                 <h3 className="text-md font-semibold text-white mb-4">2. Paste Job Description</h3>
                 <textarea
                   value={jobDescription}
@@ -274,7 +278,7 @@ export default function AnalyzerPage() {
                     rounded-xl
                     border
                     border-white/10
-                    bg-[#09090B]
+                    bg-app
                     px-4
                     py-3
                     text-sm
@@ -308,7 +312,7 @@ export default function AnalyzerPage() {
                     bg-blue-600
                     py-3.5
                     font-semibold
-                    text-white
+                    text-on-accent
                     transition
                     hover:bg-blue-500
                     disabled:opacity-40
@@ -343,7 +347,7 @@ export default function AnalyzerPage() {
             </div>
 
             {/* Right side instruction panel */}
-            <div className="rounded-2xl border border-white/10 bg-[#0C0C0E]/50 p-6 space-y-6">
+            <div className="rounded-2xl border border-white/10 bg-panel/50 p-6 space-y-6">
               <h3 className="text-lg font-bold text-white">How it works</h3>
               <div className="space-y-4">
                 <Step
@@ -382,7 +386,7 @@ export default function AnalyzerPage() {
           <div className="space-y-8 animate-fade-in">
             
             {/* Top Score Banner */}
-            <div className="grid md:grid-cols-[1fr_2fr] items-center gap-6 bg-[#0C0C0E] border border-white/10 rounded-2xl p-6">
+            <div className="grid md:grid-cols-[1fr_2fr] items-center gap-6 bg-panel border border-white/10 rounded-2xl p-6">
               
               {/* Score displays */}
               <div className="flex flex-col gap-4 items-center justify-center border-r border-white/10 pr-6">
@@ -502,7 +506,7 @@ export default function AnalyzerPage() {
                 
                 {/* Matched Keywords */}
                 {result.matched_keywords && result.matched_keywords.length > 0 && (
-                  <div className="bg-[#0C0C0E] border border-white/10 rounded-2xl p-6 space-y-4">
+                  <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-4">
                     <h4 className="text-sm font-bold text-green-400 flex items-center gap-1.5">
                       <CheckCircle2 size={16} />
                       Matched Keywords ({result.matched_keywords.length})
@@ -519,7 +523,7 @@ export default function AnalyzerPage() {
 
                 {/* Missing Keywords */}
                 {result.missing_keywords && result.missing_keywords.length > 0 && (
-                  <div className="bg-[#0C0C0E] border border-white/10 rounded-2xl p-6 space-y-4">
+                  <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-4">
                     <h4 className="text-sm font-bold text-red-400 flex items-center gap-1.5">
                       <AlertTriangle size={16} />
                       Missing Job Keywords ({result.missing_keywords.length})
@@ -541,7 +545,7 @@ export default function AnalyzerPage() {
             <div className="grid md:grid-cols-2 gap-6">
               
               {/* Strengths list */}
-              <div className="bg-[#0C0C0E] border border-white/10 rounded-2xl p-6 space-y-3">
+              <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-3">
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Core Strengths</h4>
                 <ul className="space-y-2 text-sm">
                   {result.strengths.map((str, idx) => (
@@ -554,7 +558,7 @@ export default function AnalyzerPage() {
               </div>
 
               {/* Weaknesses list */}
-              <div className="bg-[#0C0C0E] border border-white/10 rounded-2xl p-6 space-y-3">
+              <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-3">
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Gaps & Weaknesses</h4>
                 <ul className="space-y-2 text-sm">
                   {result.weaknesses.map((weak, idx) => (
@@ -569,11 +573,11 @@ export default function AnalyzerPage() {
             </div>
 
             {/* Suggestions & Action Plan */}
-            <div className="bg-[#0C0C0E] border border-white/10 rounded-2xl p-6 space-y-4">
+            <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-4">
               <h4 className="text-sm font-bold text-white uppercase tracking-wider">Priority Suggestions</h4>
               <div className="grid md:grid-cols-3 gap-4">
                 {result.suggestions.map((sug, idx) => (
-                  <div key={idx} className="bg-[#141416] border border-white/5 rounded-xl p-4 space-y-2 relative overflow-hidden">
+                  <div key={idx} className="bg-card border border-white/5 rounded-xl p-4 space-y-2 relative overflow-hidden">
                     <span
                       className={`
                         absolute top-0 right-0 px-2 py-0.5 text-[9px] uppercase tracking-wider font-semibold rounded-bl-lg
@@ -597,11 +601,11 @@ export default function AnalyzerPage() {
 
             {/* AI Bullet points improvements */}
             {result.improved_bullets && result.improved_bullets.length > 0 && (
-              <div className="bg-[#0C0C0E] border border-white/10 rounded-2xl p-6 space-y-4">
+              <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-4">
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Improved Bullet Recommendations</h4>
                 <div className="space-y-3">
                   {result.improved_bullets.map((bullet, idx) => (
-                    <div key={idx} className="grid md:grid-cols-2 gap-4 bg-[#141416]/50 p-4 rounded-xl border border-white/5">
+                    <div key={idx} className="grid md:grid-cols-2 gap-4 bg-card/50 p-4 rounded-xl border border-white/5">
                       <div className="space-y-1">
                         <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Original</span>
                         <p className="text-xs text-zinc-400 italic">"{bullet.original}"</p>
@@ -620,7 +624,7 @@ export default function AnalyzerPage() {
 
             {/* Interview focus suggestions */}
             {result.interview_focus && result.interview_focus.length > 0 && (
-              <div className="bg-[#0C0C0E] border border-white/10 rounded-2xl p-6 space-y-3">
+              <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-3">
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Technical Interview Focus</h4>
                 <p className="text-xs text-zinc-500 font-sans">Prepare for these engineering topics based on requirements and gaps.</p>
                 <ul className="space-y-2 text-sm mt-3">
@@ -660,7 +664,7 @@ function Step({ num, title, desc }: { num: number; title: string; desc: string }
 function SectionScore({ label, score, maxScore }: { label: string; score: number; maxScore: number }) {
   const percentage = (score / maxScore) * 100;
   return (
-    <div className="bg-[#141416] p-3 rounded-xl border border-white/5 flex flex-col gap-1.5">
+    <div className="bg-card p-3 rounded-xl border border-white/5 flex flex-col gap-1.5">
       <div className="flex justify-between items-center text-xs font-semibold">
         <span className="text-zinc-500">{label}</span>
         <span className="text-zinc-300">{score}/{maxScore}</span>

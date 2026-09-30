@@ -15,7 +15,7 @@ export default function BuilderPreview({
   selectedSection,
 }: Props) {
   return (
-    <section className="flex h-full items-start justify-center overflow-auto bg-[#111113] p-10">
+    <section className="flex h-full items-start justify-center overflow-auto bg-canvas p-10">
 
       <ResumePage
         resume={resume}

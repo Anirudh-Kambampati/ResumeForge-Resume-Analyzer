@@ -108,7 +108,7 @@ export default function EditorAchievements({ resume, setResume }: Props) {
             py-2
             text-sm
             font-medium
-            text-white
+            text-on-accent
             transition
             hover:bg-blue-500
           "
@@ -130,7 +130,7 @@ export default function EditorAchievements({ resume, setResume }: Props) {
                 rounded-xl
                 border
                 border-white/10
-                bg-[#141416]/40
+                bg-card/40
                 overflow-hidden
                 transition-all
                 duration-200
@@ -162,7 +162,7 @@ export default function EditorAchievements({ resume, setResume }: Props) {
                       w-4
                       rounded
                       border-white/10
-                      bg-[#0C0C0E]
+                      bg-panel
                       text-blue-600
                       focus:ring-blue-500
                     "
@@ -232,7 +232,7 @@ export default function EditorAchievements({ resume, setResume }: Props) {
                             border
                             border-blue-500/20
                             hover:bg-blue-600
-                            hover:text-white
+                            hover:text-on-accent
                             transition
                             disabled:opacity-40
                             disabled:hover:bg-blue-600/10
@@ -258,7 +258,7 @@ export default function EditorAchievements({ resume, setResume }: Props) {
                           <div className="flex gap-1.5">
                             <button
                               onClick={applyAchievementSuggestion}
-                              className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-2 py-0.5 rounded transition flex items-center gap-0.5"
+                              className="bg-blue-600 hover:bg-blue-500 text-on-accent text-xs px-2 py-0.5 rounded transition flex items-center gap-0.5"
                             >
                               <Check size={10} /> Apply
                             </button>

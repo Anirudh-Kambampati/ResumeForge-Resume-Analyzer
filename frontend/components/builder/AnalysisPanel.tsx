@@ -121,7 +121,7 @@ export default function AnalysisPanel({ onClose }: Props) {
 
   return (
     // Fills the preview area, so content is centered at a readable width
-    <aside className="flex h-full flex-col bg-[#0C0C0E]">
+    <aside className="flex h-full flex-col bg-panel">
       {/* Header */}
       <div className="border-b border-white/10 px-6 py-4">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between">
@@ -147,7 +147,7 @@ export default function AnalysisPanel({ onClose }: Props) {
           <button
             type="button"
             onClick={runAnalysis}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-on-accent transition hover:bg-blue-500"
           >
             {result ? <RefreshCw size={15} /> : <Sparkles size={15} />}
             {result ? "Re-analyze" : "Analyze my resume"}
@@ -209,7 +209,7 @@ export default function AnalysisPanel({ onClose }: Props) {
                 const done = applied[idx];
                 const loc = done?.loc ?? locateText(resume, bullet.original);
                 return (
-                  <div key={idx} className="space-y-2 rounded-xl border border-white/10 bg-[#141416] p-3">
+                  <div key={idx} className="space-y-2 rounded-xl border border-white/10 bg-card p-3">
                     {loc && (
                       <button
                         type="button"
@@ -241,7 +241,7 @@ export default function AnalysisPanel({ onClose }: Props) {
                         <button
                           type="button"
                           onClick={() => applyBullet(idx, loc, bullet.improved)}
-                          className="flex items-center gap-1 rounded-lg bg-blue-600/90 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-blue-500"
+                          className="flex items-center gap-1 rounded-lg bg-blue-600/90 px-2.5 py-1 text-xs font-medium text-on-accent transition hover:bg-blue-500"
                         >
                           <Check size={12} /> Apply
                         </button>
@@ -273,7 +273,7 @@ export default function AnalysisPanel({ onClose }: Props) {
               <section className="space-y-2">
                 <h4 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Suggestions</h4>
                 {result.suggestions.map((s, idx) => (
-                  <div key={idx} className="rounded-xl border border-white/5 bg-[#141416] p-3">
+                  <div key={idx} className="rounded-xl border border-white/5 bg-card p-3">
                     <div className="flex items-start justify-between gap-2">
                       <h5 className="text-xs font-semibold text-white">{s.title}</h5>
                       <span
@@ -305,7 +305,7 @@ function ScoreCard({ label, score }: { label: string; score: number | null }) {
   const color =
     score === null ? "text-zinc-600" : score >= 80 ? "text-green-400" : score >= 60 ? "text-yellow-400" : "text-red-400";
   return (
-    <div className="rounded-xl border border-white/10 bg-[#141416] p-3">
+    <div className="rounded-xl border border-white/10 bg-card p-3">
       <div className="text-[11px] font-medium text-zinc-500">{label}</div>
       <div className={`text-2xl font-bold ${color}`}>
         {score ?? "—"}

@@ -98,7 +98,7 @@ export default function EditorSkills({ resume, setResume }: Props) {
               rounded-xl
               border
               border-white/10
-              bg-[#141416]/40
+              bg-card/40
               p-4
               space-y-3
             "
@@ -150,7 +150,7 @@ export default function EditorSkills({ resume, setResume }: Props) {
           flex
           items-center
           gap-3
-          bg-[#141416]/20
+          bg-card/20
           p-4
           rounded-xl
           border
@@ -165,7 +165,7 @@ export default function EditorSkills({ resume, setResume }: Props) {
           onChange={(e) => setNewCategoryTitle(e.target.value)}
           className="
             flex-1
-            bg-[#0C0C0E]
+            bg-panel
             border
             border-white/10
             rounded-lg
@@ -190,7 +190,7 @@ export default function EditorSkills({ resume, setResume }: Props) {
             py-2
             text-sm
             font-medium
-            text-white
+            text-on-accent
             transition
             hover:bg-blue-500
             disabled:opacity-40

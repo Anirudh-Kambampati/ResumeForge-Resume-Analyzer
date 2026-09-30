@@ -1,3 +1,5 @@
+import ThemeToggle from "@/components/ui/ThemeToggle";
+
 export default function Navbar() {
   return (
     <header className="fixed inset-x-0 top-0 z-50">
@@ -45,6 +47,8 @@ export default function Navbar() {
           >
             GitHub ↗
           </a>
+
+          <ThemeToggle />
         </nav>
       </div>
     </header>

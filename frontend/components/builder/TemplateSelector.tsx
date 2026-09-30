@@ -26,7 +26,7 @@ export default function TemplateSelector() {
               transition-all duration-150
               ${
                 isActive
-                  ? "bg-blue-600 text-white shadow-sm"
+                  ? "bg-blue-600 text-on-accent shadow-sm"
                   : "text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04]"
               }
             `}

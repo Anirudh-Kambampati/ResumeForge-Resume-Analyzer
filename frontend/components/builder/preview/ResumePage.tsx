@@ -603,8 +603,8 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
     <article
       id="resume-page"
       className={`
-        w-[794px] min-h-[1123px] bg-white text-black
-        shadow-2xl print:shadow-none print:w-full print:max-w-full print:min-h-0 print:bg-white print:text-black
+        w-[794px] min-h-[1123px] bg-paper text-ink
+        shadow-2xl print:shadow-none print:w-full print:max-w-full print:min-h-0 print:bg-paper print:text-ink
         ${inter.className}
       `}
       style={{ padding: pt(L.pagePadding) }}

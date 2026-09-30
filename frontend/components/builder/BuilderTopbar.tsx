@@ -14,6 +14,7 @@ import { pdf } from "@react-pdf/renderer";
 import { ResumePDFDocument } from "./preview/ResumePDFDocument";
 import { useResumeStore } from "@/store/resumeStore";
 import { useResumeImport, RESUME_ACCEPT_ATTRIBUTE } from "@/lib/useResumeImport";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 
 type Props = {
   resetResume: () => void;
@@ -176,7 +177,7 @@ export default function BuilderTopbar({
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-[#09090B] px-8">
+    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-app px-8">
       {/* Left */}
       <div className="flex items-center gap-6">
         <div>
@@ -208,6 +209,8 @@ export default function BuilderTopbar({
 
       {/* Right */}
       <div className="flex items-center gap-3">
+        <ThemeToggle />
+
         {/* Hidden file input — wired through the shared hook */}
         <input
           ref={inputRef}
@@ -308,7 +311,7 @@ export default function BuilderTopbar({
             py-2
             text-sm
             font-semibold
-            text-white
+            text-on-accent
             transition
             hover:bg-blue-500
             shadow-lg

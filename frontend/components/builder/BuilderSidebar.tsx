@@ -29,7 +29,7 @@ export default function BuilderSidebar({
   const templateName = TEMPLATES[resume.template as TemplateId]?.name ?? "ATS";
 
   return (
-    <aside className="flex h-full w-60 flex-col border-r border-white/[0.06] bg-[#09090B]">
+    <aside className="flex h-full w-60 flex-col border-r border-white/[0.06] bg-app">
 
       {/* Logo */}
       <div className="shrink-0 border-b border-white/[0.06] px-4 py-[18px]">

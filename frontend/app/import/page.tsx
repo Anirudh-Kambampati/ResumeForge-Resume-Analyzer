@@ -12,6 +12,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useResumeImport, RESUME_ACCEPT_ATTRIBUTE } from "@/lib/useResumeImport";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 
 // ============================================================
 // Component
@@ -75,7 +76,8 @@ export default function ImportPage() {
   // ==============================================================
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center bg-[#09090B] px-6">
+    <main className="relative flex min-h-screen items-center justify-center bg-app px-6">
+      <ThemeToggle className="fixed right-6 top-6 z-20" />
       {/* Background glow */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute left-1/2 top-1/3 -z-10 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600/10 blur-[140px]" />
@@ -92,7 +94,7 @@ export default function ImportPage() {
         </Link>
 
         {/* Card */}
-        <div className="rounded-3xl border border-white/[0.06] bg-[#0C0C0E] p-8 sm:p-10 shadow-xl shadow-black/40">
+        <div className="rounded-3xl border border-white/[0.06] bg-panel p-8 sm:p-10 shadow-xl shadow-black/40">
           {/* Header */}
           <div className="mb-8 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.02]">

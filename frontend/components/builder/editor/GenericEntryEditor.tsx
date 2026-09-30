@@ -171,7 +171,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
               value={value}
               onChange={(e) => updateField(safeId, field.key, e.target.value)}
               placeholder={field.placeholder}
-              className={`w-full rounded-lg border border-white/10 bg-[#0C0C0E] py-2 text-sm text-white focus:border-blue-500 outline-none ${
+              className={`w-full rounded-lg border border-white/10 bg-panel py-2 text-sm text-white focus:border-blue-500 outline-none ${
                 hasUrlValue ? "pr-8 px-3" : "px-3"
               }`}
             />
@@ -249,7 +249,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
         </div>
         <button
           onClick={addEntry}
-          className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+          className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-on-accent transition hover:bg-blue-500"
         >
           <Plus size={16} />
           {config.addLabel}
@@ -264,7 +264,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
           return (
             <div
               key={safeId}
-              className="rounded-xl border border-white/10 bg-[#141416]/40 overflow-hidden transition-all duration-200"
+              className="rounded-xl border border-white/10 bg-card/40 overflow-hidden transition-all duration-200"
             >
               {/* Accordion Header */}
               <div
@@ -276,7 +276,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
                     type="checkbox"
                     checked={isEnabled}
                     onChange={(e) => { e.stopPropagation(); updateField(safeId, "enabled", e.target.checked); }}
-                    className="h-4 w-4 rounded border-white/10 bg-[#0C0C0E] text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded border-white/10 bg-panel text-blue-600 focus:ring-blue-500"
                   />
                   <div>
                     <h3 className="font-semibold text-white">
@@ -365,7 +365,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
                                   onChange={(e) => updateBullet(entry.id, bulletIdx, e.target.value)}
                                   placeholder="Describe your contribution..."
                                   rows={2}
-                                  className="flex-1 rounded-lg border border-white/10 bg-[#0C0C0E] px-3 py-2 text-sm text-white focus:border-blue-500 outline-none resize-none"
+                                  className="flex-1 rounded-lg border border-white/10 bg-panel px-3 py-2 text-sm text-white focus:border-blue-500 outline-none resize-none"
                                 />
                                 <div className="flex flex-col gap-1.5 justify-center">
                                   {config.hasAIImprovement && (
@@ -373,7 +373,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
                                       onClick={() => handleImproveBullet(entry.id, bulletIdx, bullet, config.getEntryTitle(entry))}
                                       disabled={isImproving || !bullet.trim()}
                                       title="Improve with AI"
-                                      className="p-2 rounded-lg bg-blue-600/10 text-blue-400 border border-blue-500/20 hover:bg-blue-600 hover:text-white transition disabled:opacity-40 disabled:hover:bg-blue-600/10 disabled:hover:text-blue-400"
+                                      className="p-2 rounded-lg bg-blue-600/10 text-blue-400 border border-blue-500/20 hover:bg-blue-600 hover:text-on-accent transition disabled:opacity-40 disabled:hover:bg-blue-600/10 disabled:hover:text-blue-400"
                                     >
                                       <Sparkles size={14} />
                                     </button>
@@ -400,7 +400,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
                                         AI Suggestion
                                       </span>
                                       <div className="flex gap-1.5">
-                                        <button onClick={applyBulletSuggestion} className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-2 py-0.5 rounded transition flex items-center gap-0.5">
+                                        <button onClick={applyBulletSuggestion} className="bg-blue-600 hover:bg-blue-500 text-on-accent text-xs px-2 py-0.5 rounded transition flex items-center gap-0.5">
                                           <Check size={10} /> Apply
                                         </button>
                                         <button onClick={() => setAiSuggestion(null)} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white text-xs p-1 rounded transition">

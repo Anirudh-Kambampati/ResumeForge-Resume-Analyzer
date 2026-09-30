@@ -21,7 +21,7 @@ export default function ClearableInput({
         type="text"
         value={value}
         onChange={onChange}
-        className={`w-full rounded-lg border border-white/10 bg-[#0C0C0E] py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
+        className={`w-full rounded-lg border border-white/10 bg-panel py-2 text-sm text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 ${
           hasValue ? "pr-8 px-3" : "px-3"
         } ${className}`}
         {...props}

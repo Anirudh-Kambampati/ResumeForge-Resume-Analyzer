@@ -71,7 +71,7 @@ export default function EditorCertifications({ resume, setResume }: Props) {
             py-2
             text-sm
             font-medium
-            text-white
+            text-on-accent
             transition
             hover:bg-blue-500
           "
@@ -94,7 +94,7 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                   rounded-xl
                   border
                   border-white/10
-                  bg-[#141416]/40
+                  bg-card/40
                   overflow-hidden
                   transition-all
                   duration-200
@@ -126,7 +126,7 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                         w-4
                         rounded
                         border-white/10
-                        bg-[#0C0C0E]
+                        bg-panel
                         text-blue-600
                         focus:ring-blue-500
                       "

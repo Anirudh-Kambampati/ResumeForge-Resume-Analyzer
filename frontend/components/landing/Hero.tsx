@@ -66,7 +66,7 @@ export default function Hero() {
         <div className="mt-8 flex flex-col gap-4 sm:flex-row">
           <button
             onClick={onOpen}
-            className="rounded-2xl bg-blue-600 px-8 py-4 text-base font-medium transition-all duration-300 hover:scale-[1.02] hover:bg-blue-500 cursor-pointer"
+            className="rounded-2xl bg-blue-600 px-8 py-4 text-base font-medium text-on-accent transition-all duration-300 hover:scale-[1.02] hover:bg-blue-500 cursor-pointer"
           >
             Build Resume
           </button>

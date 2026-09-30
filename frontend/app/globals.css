@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: dark;
+
   --background: #09090b;
   --foreground: #ededed;
 
@@ -12,14 +14,109 @@
 
   --border: rgba(255, 255, 255, 0.1);
   --muted: rgb(161, 161, 170);
+
+  /* App surfaces (see bg-app / bg-panel / bg-card / bg-canvas) */
+  --app: #09090b;
+  --panel: #0c0c0e;
+  --card: #141416;
+  --canvas: #111113;
+
+  /* Decorative layers */
+  --grid-line: rgba(255, 255, 255, 0.03);
+  --scrollbar: rgba(255, 255, 255, 0.15);
+  --scrollbar-hover: rgba(255, 255, 255, 0.3);
+  --selection-text: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
+  --color-app: var(--app);
+  --color-panel: var(--panel);
+  --color-card: var(--card);
+  --color-canvas: var(--canvas);
+
+  /* Fixed colours that must NOT flip with the theme:
+     paper/ink for the resume page, on-accent for text on solid blue buttons. */
+  --color-paper: #ffffff;
+  --color-ink: #000000;
+  --color-on-accent: #ffffff;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+/* ------------------------------------------------ */
+/* Light theme                                      */
+/*                                                  */
+/* The UI is written with dark-theme utilities      */
+/* (text-white, text-zinc-400, border-white/10 …).  */
+/* Tailwind v4 utilities read --color-* variables,  */
+/* so light mode re-points those variables instead  */
+/* of duplicating every class:                      */
+/*   - white ⇄ near-black, black → white            */
+/*   - the zinc scale is mirrored (400 ⇄ 600 …)     */
+/*   - pale accent text shades get darker so they   */
+/*     stay readable on white                       */
+/* Use paper/ink/on-accent for colours that must    */
+/* stay fixed. Screen-only, so printing is          */
+/* unaffected.                                      */
+/* ------------------------------------------------ */
+
+@media screen {
+  :root[data-theme="light"] {
+    color-scheme: light;
+
+    --background: #f5f5f7;
+    --foreground: #18181b;
+    --primary-soft: rgba(59, 130, 246, 0.1);
+    --surface: rgba(0, 0, 0, 0.03);
+    --surface-hover: rgba(0, 0, 0, 0.05);
+    --border: rgba(0, 0, 0, 0.1);
+    --muted: rgb(82, 82, 91);
+
+    --app: #f5f5f7;
+    --panel: #ffffff;
+    --card: #f4f4f5;
+    --canvas: #e4e4e7;
+
+    --grid-line: rgba(0, 0, 0, 0.04);
+    --scrollbar: rgba(0, 0, 0, 0.18);
+    --scrollbar-hover: rgba(0, 0, 0, 0.32);
+    --selection-text: #09090b;
+
+    --color-white: #09090b;
+    --color-black: #ffffff;
+
+    --color-zinc-50: oklch(14.1% 0.005 285.823);
+    --color-zinc-100: oklch(21% 0.006 285.885);
+    --color-zinc-200: oklch(27.4% 0.006 286.033);
+    --color-zinc-300: oklch(37% 0.013 285.805);
+    --color-zinc-400: oklch(44.2% 0.017 285.786);
+    --color-zinc-500: oklch(52% 0.016 285.938);
+    --color-zinc-600: oklch(70.5% 0.015 286.067);
+    --color-zinc-700: oklch(87.1% 0.006 286.286);
+    --color-zinc-800: oklch(92% 0.004 286.32);
+    --color-zinc-900: oklch(96.7% 0.001 286.375);
+    --color-zinc-950: oklch(98.5% 0 0);
+
+    --color-blue-200: oklch(42.4% 0.199 265.638);
+    --color-blue-300: oklch(48.8% 0.243 264.376);
+    --color-blue-400: oklch(54.6% 0.245 262.881);
+    --color-red-300: oklch(50.5% 0.213 27.518);
+    --color-red-400: oklch(57.7% 0.245 27.325);
+    --color-green-300: oklch(52.7% 0.154 150.069);
+    --color-green-400: oklch(52.7% 0.154 150.069);
+    --color-green-500: oklch(62.7% 0.194 149.214);
+    --color-amber-300: oklch(55.5% 0.163 48.998);
+    --color-amber-400: oklch(55.5% 0.163 48.998);
+    --color-amber-500: oklch(66.6% 0.179 58.318);
+    --color-yellow-400: oklch(55.4% 0.135 66.442);
+    --color-yellow-500: oklch(68.1% 0.162 75.834);
+    --color-purple-400: oklch(55.8% 0.288 302.321);
+    --color-orange-400: oklch(55.3% 0.195 38.402);
+  }
 }
 
 /* ------------------------------------------------ */
@@ -84,12 +181,12 @@ body::before {
 
   background-image:
     linear-gradient(
-      rgba(255,255,255,.03) 1px,
+      var(--grid-line) 1px,
       transparent 1px
     ),
     linear-gradient(
       90deg,
-      rgba(255,255,255,.03) 1px,
+      var(--grid-line) 1px,
       transparent 1px
     );
 
@@ -123,7 +220,7 @@ footer {
 
 ::selection {
   background: rgba(59,130,246,.3);
-  color: white;
+  color: var(--selection-text);
 }
 
 /* ------------------------------------------------ */
@@ -139,12 +236,12 @@ footer {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,.15);
+  background: var(--scrollbar);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,.3);
+  background: var(--scrollbar-hover);
 }
 
 /* ------------------------------------------------ */

@@ -104,7 +104,7 @@ export default function BuilderWorkspace() {
   // 3. Show nothing until initial data is ready
   if (!initialLoadDone) {
     return (
-      <main className="flex h-screen items-center justify-center bg-[#09090B]">
+      <main className="flex h-screen items-center justify-center bg-app">
         <div className="flex items-center gap-3 text-zinc-600">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-400" />
           <span className="text-sm">Loading resume…</span>
@@ -114,7 +114,7 @@ export default function BuilderWorkspace() {
   }
 
   return (
-    <main id="builder-workspace" className="flex h-screen overflow-hidden bg-[#09090B] text-white print:overflow-visible print:h-auto">
+    <main id="builder-workspace" className="flex h-screen overflow-hidden bg-app text-white print:overflow-visible print:h-auto">
 
       {/* Sidebar - hidden when printing */}
       <div className="print:hidden flex shrink-0">
@@ -148,7 +148,7 @@ export default function BuilderWorkspace() {
         <div className="grid flex-1 grid-cols-[480px_1fr] overflow-hidden print:block print:overflow-visible print:h-auto">
 
           {/* Editor Panel - hidden when printing */}
-          <div className="overflow-y-auto border-r border-white/10 bg-[#0C0C0E] print:hidden">
+          <div className="overflow-y-auto border-r border-white/10 bg-panel print:hidden">
             <BuilderEditor
               resume={resume}
               setResume={setResume}
@@ -159,7 +159,7 @@ export default function BuilderWorkspace() {
           {/* Preview Panel - full width on print. While analysis is open it
               takes over this area on screen, but the preview still prints. */}
           <div
-            className={`overflow-auto bg-[#111113] print:block print:bg-white print:overflow-visible print:h-auto ${
+            className={`overflow-auto bg-canvas print:block print:bg-paper print:overflow-visible print:h-auto ${
               analysisOpen ? "hidden" : ""
             }`}
           >
