@@ -1,20 +1,22 @@
 import os
-import io
-import re
 import logging
-from typing import Optional, List, Dict
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from typing import Any, Optional, List, Dict, Tuple
+from fastapi import Depends, FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
-import pypdf
 from dotenv import load_dotenv
+
+from services.rate_limiter import ai_rate_limit, is_api_key_configured
 
 from services.scoring_service import score_resume, normalize_skill, SKILL_ALIASES
 from services.jd_service import calculate_job_match
 from services.llm_client import LLMClient
 from services.validator import clean_and_parse_json, validate_generated_claims
+from services.bullet_evidence import is_safe_rewrite
 from services.import_service import run_import_pipeline
 from services.extractor import extract_text_from_pdf, ExtractionResult
+from services.docx_extractor import extract_text_from_docx, DocxExtractionResult
 from services.ats_service import run_ats_optimization
 
 # -------------------------------------------------------------------
@@ -29,6 +31,74 @@ logger = logging.getLogger("ResumeForge-Backend")
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
 app = FastAPI(title="ResumeForge API", version="1.0.0")
+
+# Compress large JSON responses (analyze payloads are tens of KB)
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+# -------------------------------------------------------------------
+# Abuse protection: per-IP rate limits on AI endpoints.
+#
+# Limits are per-IP sliding windows, enforced before any expensive work
+# (PDF parsing, LLM calls). Tune via env vars; defaults suit a free-tier
+# OpenRouter key comfortably.
+# -------------------------------------------------------------------
+
+_RATE_LIMIT_ANALYZE = int(os.getenv("RATE_LIMIT_ANALYZE", "10"))
+_RATE_LIMIT_IMPROVE = int(os.getenv("RATE_LIMIT_IMPROVE", "30"))
+_RATE_LIMIT_PARSE = int(os.getenv("RATE_LIMIT_PARSE", "10"))
+_RATE_LIMIT_ATS = int(os.getenv("RATE_LIMIT_ATS", "10"))
+_RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+_RATE_LIMIT_HEALTH = int(os.getenv("RATE_LIMIT_HEALTH", "30"))
+
+rate_limit_analyze = ai_rate_limit(_RATE_LIMIT_ANALYZE, _RATE_LIMIT_WINDOW)
+rate_limit_improve = ai_rate_limit(_RATE_LIMIT_IMPROVE, _RATE_LIMIT_WINDOW)
+rate_limit_parse = ai_rate_limit(_RATE_LIMIT_PARSE, _RATE_LIMIT_WINDOW)
+rate_limit_ats = ai_rate_limit(_RATE_LIMIT_ATS, _RATE_LIMIT_WINDOW)
+rate_limit_health = ai_rate_limit(_RATE_LIMIT_HEALTH, _RATE_LIMIT_WINDOW)
+
+# Max accepted resume file size. Enforced before reading the whole body into memory.
+MAX_RESUME_BYTES = 5 * 1024 * 1024
+
+SUPPORTED_RESUME_EXTENSIONS = (".pdf", ".docx")
+
+
+def _validate_resume_upload(resume: UploadFile, file_bytes: bytes) -> None:
+    """Common guards for resume upload endpoints (PDF and DOCX)."""
+    if not resume.filename or not resume.filename.lower().endswith(SUPPORTED_RESUME_EXTENSIONS):
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF or DOCX resume uploads are supported.",
+        )
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="The uploaded file is empty.")
+    if len(file_bytes) > MAX_RESUME_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail="Resume file size must be less than 5MB.",
+        )
+
+
+def _extract_resume_text(
+    file_bytes: bytes, filename: str
+) -> Tuple[str, List[Dict[str, Any]], int]:
+    """Extract text from PDF or DOCX bytes, routing on the extension.
+
+    Returns (text, embedded_links, page_count). Raises HTTPException 400 on
+    corrupt / scanned / empty files.
+    """
+    if filename.lower().endswith(".docx"):
+        try:
+            result: DocxExtractionResult = extract_text_from_docx(file_bytes, filename)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return result.text, result.embedded_links, result.page_count
+
+    try:
+        result: ExtractionResult = extract_text_from_pdf(file_bytes, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return result.text, result.embedded_links, result.page_count
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -88,7 +158,10 @@ def health_check():
     return {
         "status": "healthy",
         "ai_provider_configured": llm is not None,
-        "configured_model": model,
+        "configured_model": llm.model if llm else model,
+        "model_chain": llm.model_chain if llm else [],
+        "api_key_required": is_api_key_configured(),
+        "supported_formats": ["pdf", "docx"],
     }
 
 
@@ -98,11 +171,14 @@ def health_check():
 
 
 @app.post("/api/parse")
-async def parse_resume_endpoint(resume: UploadFile = File(...)):
-    """Upload a PDF resume and receive structured parsed data.
+async def parse_resume_endpoint(
+    resume: UploadFile = File(...),
+    _: None = Depends(rate_limit_parse),
+):
+    """Upload a PDF or DOCX resume and receive structured parsed data.
 
     The pipeline runs through five stages:
-      1. EXTRACT  → PDF text extraction
+      1. EXTRACT  → PDF/DOCX text extraction
       2. PROMPT   → LLM prompt construction
       3. LLM      → OpenRouter chat completion
       4. VALIDATE → JSON parsing and structure validation
@@ -111,10 +187,9 @@ async def parse_resume_endpoint(resume: UploadFile = File(...)):
     Returns pure resume data (profile, education, experience, skills, etc.)
     without any builder-specific concerns (sectionOrder, template, layout).
     """
-    # Validate file type
-    if not resume.filename or not resume.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF resume uploads are supported.")
-
+    # Read once — a second UploadFile.read() returns b"" (stream is at EOF)
+    file_bytes = await resume.read()
+    _validate_resume_upload(resume, file_bytes)
     # Check configuration
     api_key, model = get_openrouter_config()
     llm_client = LLMClient.from_env(api_key, model)
@@ -125,14 +200,9 @@ async def parse_resume_endpoint(resume: UploadFile = File(...)):
             "Please verify the .env configuration.",
         )
 
-    # Read PDF bytes
-    pdf_bytes = await resume.read()
-    if not pdf_bytes:
-        raise HTTPException(status_code=400, detail="The uploaded PDF file is empty.")
-
     # Run the pipeline
     result = await run_import_pipeline(
-        pdf_bytes=pdf_bytes,
+        file_bytes=file_bytes,
         filename=resume.filename,
         llm_client=llm_client,
     )
@@ -145,10 +215,51 @@ async def parse_resume_endpoint(resume: UploadFile = File(...)):
 # -------------------------------------------------------------------
 
 
+async def _run_ai_review(llm_client: LLMClient, system_prompt: str, user_prompt: str) -> Dict[str, Any]:
+    """Call the LLM for the review JSON, with one JSON-repair retry.
+
+    Raises HTTPException (provider errors) or ValueError (unparseable output);
+    the caller degrades to rule-based results on either.
+    """
+    def parse_object(raw: str) -> Dict[str, Any]:
+        parsed = clean_and_parse_json(raw)
+        if not isinstance(parsed, dict):
+            raise ValueError("expected a JSON object")
+        return parsed
+
+    raw_response = await llm_client.chat_completion(system_prompt, user_prompt)
+    try:
+        return parse_object(raw_response)
+    except Exception as e:
+        logger.warning(f"Initial JSON parsing failed: {str(e)}. Attempting repair retry...")
+    repair_system_prompt = "You are a JSON correction assistant. Fix the JSON and return valid JSON only."
+    repair_user_prompt = f"""
+JSON OUTPUT:
+{raw_response}
+Correct this to output ONLY valid JSON.
+"""
+    repaired_response = await llm_client.chat_completion(repair_system_prompt, repair_user_prompt)
+    try:
+        return parse_object(repaired_response)
+    except Exception as retry_e:
+        raise ValueError(
+            f"The AI model failed to output compliant structured analysis: {retry_e}"
+        ) from retry_e
+
+
+def _parse_ai_score(value: Any) -> Optional[int]:
+    """Clamp the AI review score to 0-100; None if missing or non-numeric."""
+    try:
+        return max(0, min(100, int(round(float(value)))))
+    except (TypeError, ValueError):
+        return None
+
+
 @app.post("/api/analyze")
 async def analyze_resume(
     resume: UploadFile = File(...),
     job_description: Optional[str] = Form(None),
+    _: None = Depends(rate_limit_analyze),
 ):
     api_key, model = get_openrouter_config()
     llm_client = LLMClient.from_env(api_key, model)
@@ -159,27 +270,13 @@ async def analyze_resume(
             "Please verify the .env configuration.",
         )
 
-    if not resume.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF resume uploads are supported.")
+    # Read once — a second UploadFile.read() returns b"" (stream is at EOF)
+    file_bytes = await resume.read()
+    _validate_resume_upload(resume, file_bytes)
 
     is_job_match = job_description is not None and bool(job_description.strip())
 
-    pdf_bytes = await resume.read()
-    if not pdf_bytes:
-        raise HTTPException(status_code=400, detail="The uploaded PDF file is empty.")
-
-    try:
-        pdf_file = io.BytesIO(pdf_bytes)
-        reader = pypdf.PdfReader(pdf_file)
-        extracted_text = ""
-        for page in reader.pages:
-            extracted_text += page.extract_text() or ""
-    except Exception as e:
-        logger.error(f"Error reading PDF: {str(e)}")
-        raise HTTPException(
-            status_code=400,
-            detail="Failed to parse PDF document. Ensure it is not password protected or corrupt.",
-        )
+    extracted_text, _, _ = _extract_resume_text(file_bytes, resume.filename)
 
     extracted_text = extracted_text.strip()
     if not extracted_text:
@@ -283,40 +380,22 @@ Return a valid JSON object:
 }}
 """
 
-    raw_response = ""
-    parsed_json = {}
-
+    # The AI review is best-effort: if the provider call or JSON repair fails,
+    # still return the deterministic ATS results instead of failing the request.
+    parsed_json: Dict[str, Any] = {}
+    ai_error: Optional[str] = None
     try:
-        raw_response = await llm_client.chat_completion(system_prompt, user_prompt)
-        parsed_json = clean_and_parse_json(raw_response)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.warning(f"Initial JSON parsing failed: {str(e)}. Attempting repair retry...")
-        repair_system_prompt = (
-            "You are a JSON correction assistant. Fix the JSON and return valid JSON only."
-        )
-        repair_user_prompt = f"""
-ERROR: {str(e)}
-JSON OUTPUT:
-{raw_response if raw_response else str(parsed_json)}
-Correct this to output ONLY valid JSON.
-"""
-        try:
-            repaired_response = await llm_client.chat_completion(
-                repair_system_prompt, repair_user_prompt
-            )
-            parsed_json = clean_and_parse_json(repaired_response)
-        except HTTPException:
-            raise
-        except Exception as retry_e:
-            logger.error(f"Retry repair attempt failed: {str(retry_e)}")
-            raise HTTPException(
-                status_code=502,
-                detail=f"The AI model failed to output compliant structured analysis. Error: {str(retry_e)}",
-            )
+        parsed_json = await _run_ai_review(llm_client, system_prompt, user_prompt)
+    except HTTPException as e:
+        ai_error = str(e.detail)
+    except Exception as e:  # noqa: BLE001 — any AI failure degrades, never 500s
+        ai_error = f"The AI review failed: {e}"
+    if ai_error:
+        logger.warning("[ANALYZE] AI review unavailable, returning rule-based results only | %s", ai_error)
 
-    ai_review_score = max(0, min(100, int(parsed_json.get("ai_review_score", 70))))
+    ai_review_score = _parse_ai_score(parsed_json.get("ai_review_score")) if not ai_error else None
+    if ai_review_score is None and not ai_error:
+        ai_error = "The AI review returned no usable score."
 
     job_match_score = None
     job_match_breakdown = None
@@ -324,7 +403,8 @@ Correct this to output ONLY valid JSON.
     missing_keywords = []
     interview_focus = []
 
-    if is_job_match:
+    # Job match needs AI-extracted JD requirements; skip it when the AI failed
+    if is_job_match and parsed_json:
         try:
             jd_requirements = JDRequirements.model_validate(
                 parsed_json.get("jd_requirements", {})
@@ -338,36 +418,45 @@ Correct this to output ONLY valid JSON.
         missing_keywords = match_result["all_missing_keywords"]
         interview_focus = parsed_json.get("interview_focus", [])
 
-    # Analyzer suggestions are generated content too. Do not surface a rewritten
-    # bullet unless its original is present in the uploaded evidence and it passes
-    # the same deterministic claim gate used by the editor improvement endpoint.
+    # Analyzer suggestions are generated content too. Only surface a rewritten
+    # bullet whose original really is in the resume, and check its claims against
+    # that original bullet alone (not the whole resume), so a rewrite can't borrow
+    # numbers or technologies from another entry.
     safe_improved_bullets = []
-    for item in parsed_json.get("improved_bullets", []):
+    for item in parsed_json.get("improved_bullets", []) or []:
         if not isinstance(item, dict):
             continue
         original = str(item.get("original", ""))
         improved = str(item.get("improved", ""))
-        if original and original.lower() in extracted_text.lower() and validate_generated_claims(
-            extracted_text, improved
-        ):
+        if is_safe_rewrite(original, improved, extracted_text):
             safe_improved_bullets.append({"original": original, "improved": improved})
 
     return {
         "analysis_mode": "job_match" if is_job_match else "general",
+        "ai_review_available": ai_error is None,
+        "ai_review_error": ai_error,
         "scores": {
             "deterministic_rule_score": deterministic_rule_score,
             "ai_review_score": ai_review_score,
             "job_match_score": job_match_score,
         },
-        "score_gap_insight": parsed_json.get(
-            "score_gap_insight",
-            "Rule-based and AI evaluation show broadly consistent resume quality.",
+        "score_gap_insight": (
+            parsed_json.get(
+                "score_gap_insight",
+                "Rule-based and AI evaluation show broadly consistent resume quality.",
+            )
+            if not ai_error
+            else ""
         ),
         "rule_breakdown": rule_breakdown,
         "job_match_breakdown": job_match_breakdown,
         "matched_keywords": matched_keywords,
         "missing_keywords": missing_keywords,
-        "summary": parsed_json.get("summary", "Resume evaluated."),
+        "summary": (
+            parsed_json.get("summary", "Resume evaluated.")
+            if not ai_error
+            else "AI review is unavailable right now — showing rule-based ATS results only."
+        ),
         "strengths": parsed_json.get("strengths", []),
         "weaknesses": parsed_json.get("weaknesses", []),
         "suggestions": parsed_json.get("suggestions", []),
@@ -382,7 +471,7 @@ Correct this to output ONLY valid JSON.
 
 
 @app.post("/api/improve")
-async def improve_text(req: ImproveRequest):
+async def improve_text(req: ImproveRequest, _: None = Depends(rate_limit_improve)):
     api_key, model = get_openrouter_config()
     llm_client = LLMClient.from_env(api_key, model)
     if llm_client is None:
@@ -393,6 +482,8 @@ async def improve_text(req: ImproveRequest):
 
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="Text to improve cannot be empty.")
+    if len(req.text) > 20_000 or (req.context and len(req.context) > 5_000):
+        raise HTTPException(status_code=413, detail="Text is too long to improve.")
 
     system_prompt = (
         "You are an expert resume writer. Your job is to improve professional wording. "
@@ -488,11 +579,14 @@ async def improve_text(req: ImproveRequest):
 
 
 @app.post("/api/ats/optimize")
-async def ats_optimize_resume(resume: UploadFile = File(...)):
-    """Upload a PDF resume and receive ATS-optimized structured data.
+async def ats_optimize_resume(
+    resume: UploadFile = File(...),
+    _: None = Depends(rate_limit_ats),
+):
+    """Upload a PDF or DOCX resume and receive ATS-optimized structured data.
 
     The ATS optimization layer:
-      1. EXTRACT text from PDF
+      1. EXTRACT text from the document (PDF or DOCX)
       2. BUILD ATS-optimized prompts
       3. LLM parses and cleans the text
       4. POST-PROCESS: clean artifacts, normalize links, validate
@@ -504,8 +598,9 @@ async def ats_optimize_resume(resume: UploadFile = File(...)):
 
     No builder fields (id, enabled, template, layout, sectionOrder).
     """
-    if not resume.filename or not resume.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF resume uploads are supported.")
+    # Read once — a second UploadFile.read() returns b"" (stream is at EOF)
+    file_bytes = await resume.read()
+    _validate_resume_upload(resume, file_bytes)
 
     api_key, model = get_openrouter_config()
     llm_client = LLMClient.from_env(api_key, model)
@@ -516,31 +611,25 @@ async def ats_optimize_resume(resume: UploadFile = File(...)):
             "Please verify the .env configuration.",
         )
 
-    pdf_bytes = await resume.read()
-    if not pdf_bytes:
-        raise HTTPException(status_code=400, detail="The uploaded PDF file is empty.")
+    extracted_text, embedded_links, page_count = _extract_resume_text(
+        file_bytes, resume.filename
+    )
 
-    # Extract text from PDF
-    try:
-        extraction = extract_text_from_pdf(pdf_bytes, resume.filename)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    if extraction.is_empty():
+    if not extracted_text.strip():
         raise HTTPException(
             status_code=400,
-            detail="Could not extract text from the PDF. "
-            "The file may be scanned or image-based. "
-            "Please upload a text-based PDF.",
+            detail="Could not extract text from the document. "
+            "The file may be scanned, image-based, or empty. "
+            "Please upload a text-based PDF or DOCX.",
         )
 
     # Augment text with embedded hyperlinks so the LLM sees both
-    llm_text = extraction.text
-    if extraction.embedded_links:
-        unique_urls = list(dict.fromkeys(link["url"] for link in extraction.embedded_links))
+    llm_text = extracted_text
+    if embedded_links:
+        unique_urls = list(dict.fromkeys(link["url"] for link in embedded_links))
         links_block = "\n".join(f"  [Embedded Hyperlink] {url}" for url in unique_urls)
         llm_text += (
-            f"\n\n--- EMBEDDED PDF HYPERLINKS (clickable links in the document) ---\n"
+            f"\n\n--- EMBEDDED DOCUMENT HYPERLINKS (clickable links in the resume) ---\n"
             f"{links_block}\n"
             f"--- END EMBEDDED HYPERLINKS ---\n\n"
             "Note: Where the visible text link and an embedded hyperlink disagree, "

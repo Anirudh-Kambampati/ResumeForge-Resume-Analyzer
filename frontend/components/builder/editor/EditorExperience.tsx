@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { Resume, Experience } from "@/types/resume";
 import { Plus, Trash, Sparkles, ChevronDown, ChevronUp, Check, X, AlertCircle } from "lucide-react";
+import MoveButtons, { moveItem } from "@/components/ui/MoveButtons";
 import { normalizeError } from "@/lib/errorHelper";
+import { apiPostJson } from "@/lib/api";
 import ClearableInput from "@/components/ui/ClearableInput";
 import ClearableTextarea from "@/components/ui/ClearableTextarea";
 
@@ -104,29 +106,11 @@ export default function EditorExperience({ resume, setResume }: Props) {
     setAiSuggestion(null);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const res = await fetch(`${apiBase}/api/improve`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          type: "bullet",
-          text: currentText,
-          context: `${jobRole} at ${companyName}`.trim(),
-        }),
+      const data = await apiPostJson<{ improved_text: string }>("/api/improve", {
+        type: "bullet",
+        text: currentText,
+        context: `${jobRole} at ${companyName}`.trim(),
       });
-
-      if (!res.ok) {
-        let errText = await res.text();
-        try {
-          const errJson = JSON.parse(errText);
-          errText = normalizeError(errJson);
-        } catch {}
-        throw new Error(errText || "Failed to improve bullet");
-      }
-
-      const data = await res.json();
       setAiSuggestion({ itemId, bulletIdx, text: data.improved_text });
     } catch (e: unknown) {
       console.error(e);
@@ -237,6 +221,7 @@ export default function EditorExperience({ resume, setResume }: Props) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <MoveButtons index={index} count={resume.experience.length} onMove={(dir) => updateExperiences(moveItem(resume.experience, index, dir))} />
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

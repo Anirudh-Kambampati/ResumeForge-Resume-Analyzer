@@ -14,6 +14,8 @@ import {
   Info
 } from "lucide-react";
 import { normalizeError } from "@/lib/errorHelper";
+import { API_BASE_URL, apiHeaders, toApiError } from "@/lib/api";
+import { isSupportedResumeFile, RESUME_ACCEPT_ATTRIBUTE } from "@/lib/useResumeImport";
 
 interface Suggestion {
   title: string;
@@ -23,7 +25,8 @@ interface Suggestion {
 
 interface AnalysisScores {
   deterministic_rule_score: number;
-  ai_review_score: number;
+  /** null when the AI review failed and only rule-based results are available */
+  ai_review_score: number | null;
   job_match_score: number | null;
 }
 
@@ -35,6 +38,8 @@ interface BreakdownItem {
 
 interface AnalysisData {
   analysis_mode: "general" | "job_match";
+  ai_review_available?: boolean;
+  ai_review_error?: string | null;
   scores: AnalysisScores;
   score_gap_insight: string;
   rule_breakdown: Record<string, BreakdownItem>;
@@ -89,8 +94,8 @@ export default function AnalyzerPage() {
 
   const validateAndSetFile = (selectedFile: File) => {
     setError(null);
-    if (!selectedFile.name.toLowerCase().endsWith(".pdf")) {
-      setError("Only PDF resume files are supported.");
+    if (!isSupportedResumeFile(selectedFile.name)) {
+      setError("Only PDF or DOCX resume files are supported.");
       setFile(null);
       return;
     }
@@ -116,24 +121,14 @@ export default function AnalyzerPage() {
     }
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${apiBase}/api/analyze`, {
+      const response = await fetch(`${API_BASE_URL}/api/analyze`, {
         method: "POST",
         body: formData,
+        headers: apiHeaders(),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `Analysis failed with status ${response.status}.`;
-        if (errorText) {
-          try {
-            const errorData: unknown = JSON.parse(errorText);
-            errorMessage = normalizeError(errorData);
-          } catch {
-            errorMessage = errorText;
-          }
-        }
-        throw new Error(errorMessage);
+        throw await toApiError(response);
       }
 
       const data = await response.json();
@@ -215,7 +210,7 @@ export default function AnalyzerPage() {
               
               {/* File Upload Block */}
               <div className="bg-[#0C0C0E] border border-white/10 rounded-2xl p-6">
-                <h3 className="text-md font-semibold text-white mb-4">1. Upload Resume PDF</h3>
+                <h3 className="text-md font-semibold text-white mb-4">1. Upload Resume</h3>
                 
                 <div
                   onDragEnter={handleDrag}
@@ -248,7 +243,7 @@ export default function AnalyzerPage() {
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileChange}
-                    accept=".pdf"
+                    accept={RESUME_ACCEPT_ATTRIBUTE}
                     className="hidden"
                   />
                   <Upload size={32} className={file ? "text-blue-500" : "text-zinc-500"} />
@@ -260,7 +255,7 @@ export default function AnalyzerPage() {
                   ) : (
                     <div>
                       <p className="text-sm font-medium text-zinc-300">Drag and drop resume here, or click to browse</p>
-                      <p className="text-xs text-zinc-600 mt-1">Supports PDF (Max 5MB)</p>
+                      <p className="text-xs text-zinc-600 mt-1">Supports PDF and DOCX (Max 5MB)</p>
                     </div>
                   )}
                 </div>
@@ -353,7 +348,7 @@ export default function AnalyzerPage() {
               <div className="space-y-4">
                 <Step
                   num={1}
-                  title="Upload Resume PDF"
+                  title="Upload Resume"
                   desc="We extract selectable content page-by-page from your ATS-friendly resume file."
                 />
                 <Step
@@ -405,7 +400,7 @@ export default function AnalyzerPage() {
                 
                 <div className="text-center">
                   <div className="text-3xl font-extrabold text-white">
-                    {result.scores.ai_review_score} <span className="text-lg text-zinc-500">/ 100</span>
+                    {result.scores.ai_review_score ?? "—"} <span className="text-lg text-zinc-500">/ 100</span>
                   </div>
                   <span className="mt-1 text-[10px] uppercase tracking-wider font-semibold text-purple-400">
                     AI Review Score
@@ -461,14 +456,26 @@ export default function AnalyzerPage() {
                   {result.analysis_mode === "job_match" && <p><span className="text-green-400">Job Match Score:</span> Deterministic alignment between resume evidence and the supplied job description.</p>}
                 </div>
                 
-                <div className="bg-blue-500/5 border border-blue-500/20 p-4 rounded-xl">
-                  <h4 className="text-xs uppercase tracking-wider text-blue-400 font-bold mb-2">
-                    Score Gap Insight
-                  </h4>
-                  <p className="text-xs text-zinc-300 leading-relaxed font-sans">
-                    {result.score_gap_insight}
-                  </p>
-                </div>
+                {result.ai_review_available === false ? (
+                  <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl">
+                    <h4 className="text-xs uppercase tracking-wider text-amber-400 font-bold mb-2">
+                      AI Review Unavailable
+                    </h4>
+                    <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                      {result.ai_review_error || "The AI review could not be completed."} The rule-based ATS
+                      score below is still accurate{result.analysis_mode === "job_match" ? "; job match needs the AI review, so try again shortly" : ""}.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-blue-500/5 border border-blue-500/20 p-4 rounded-xl">
+                    <h4 className="text-xs uppercase tracking-wider text-blue-400 font-bold mb-2">
+                      Score Gap Insight
+                    </h4>
+                    <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                      {result.score_gap_insight}
+                    </p>
+                  </div>
+                )}
                 
                 {/* Score indicators */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">

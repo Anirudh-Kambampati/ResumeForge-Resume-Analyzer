@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { Resume } from "@/types/resume";
-import { Plus, Trash, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Sparkles, Check, X, AlertCircle } from "lucide-react";
+import { Plus, Trash, ChevronDown, ChevronUp, Sparkles, Check, X, AlertCircle } from "lucide-react";
+import MoveButtons, { moveItem } from "@/components/ui/MoveButtons";
 import { normalizeError } from "@/lib/errorHelper";
+import { apiPostJson } from "@/lib/api";
 import ClearableInput from "@/components/ui/ClearableInput";
 import ClearableTextarea from "@/components/ui/ClearableTextarea";
 
@@ -63,16 +65,6 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
 
   const updateEntries = (updated: any[]) => {
     setResume(config.setEntries(resume, updated));
-  };
-
-  const moveEntry = (id: string, direction: -1 | 1) => {
-    const idx = entries.findIndex((e: any) => e.id === id);
-    if (idx === -1) return;
-    const newIdx = idx + direction;
-    if (newIdx < 0 || newIdx >= entries.length) return;
-    const updated = [...entries];
-    [updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]];
-    updateEntries(updated);
   };
 
   const addEntry = () => {
@@ -145,24 +137,11 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
     setAiSuggestion(null);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const res = await fetch(`${apiBase}/api/improve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: config.improvementType || "bullet",
-          text: currentText,
-          context: contextTitle,
-        }),
+      const data = await apiPostJson<{ improved_text: string }>("/api/improve", {
+        type: config.improvementType || "bullet",
+        text: currentText,
+        context: contextTitle,
       });
-
-      if (!res.ok) {
-        let errText = await res.text();
-        try { const errJson = JSON.parse(errText); errText = normalizeError(errJson); } catch {}
-        throw new Error(errText || "Failed to improve bullet");
-      }
-
-      const data = await res.json();
       setAiSuggestion({ itemId, bulletIdx, text: data.improved_text });
     } catch (e: unknown) {
       console.error(e);
@@ -309,22 +288,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); moveEntry(entry.id, -1); }}
-                    disabled={entries.indexOf(entry) === 0}
-                    className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-white/10 transition disabled:opacity-20 disabled:cursor-not-allowed"
-                    title="Move up"
-                  >
-                    <ArrowUp size={14} />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); moveEntry(entry.id, 1); }}
-                    disabled={entries.indexOf(entry) === entries.length - 1}
-                    className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-white/10 transition disabled:opacity-20 disabled:cursor-not-allowed"
-                    title="Move down"
-                  >
-                    <ArrowDown size={14} />
-                  </button>
+                  <MoveButtons index={index} count={entries.length} onMove={(dir) => updateEntries(moveItem(entries, index, dir))} />
                   <button
                     onClick={(e) => { e.stopPropagation(); removeEntry(entry.id); }}
                     className="p-1.5 rounded-lg text-zinc-500 hover:text-red-500 hover:bg-white/5 transition"

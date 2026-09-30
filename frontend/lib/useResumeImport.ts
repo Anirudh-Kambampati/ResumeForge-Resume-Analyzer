@@ -6,6 +6,23 @@ import { useResumeStore } from "@/store/resumeStore";
 import type { Resume } from "@/types/resume";
 
 // ============================================================
+// Supported formats
+// ============================================================
+
+/** File extensions accepted for resume import (PDF + DOCX). */
+export const SUPPORTED_RESUME_EXTENSIONS = [".pdf", ".docx"] as const;
+
+/** `accept` attribute value for file inputs. */
+export const RESUME_ACCEPT_ATTRIBUTE = ".pdf,.docx";
+
+/** True when the filename has a supported resume extension. */
+export function isSupportedResumeFile(filename: string): boolean {
+  return SUPPORTED_RESUME_EXTENSIONS.some((ext) =>
+    filename.toLowerCase().endsWith(ext),
+  );
+}
+
+// ============================================================
 // Hook state
 // ============================================================
 
@@ -18,8 +35,8 @@ export interface UseResumeImportReturn {
   errorMessage: string;
   /** Name of the file currently being / that was imported */
   fileName: string;
-  /** Accepted MIME types for the file input */
-  acceptedFormats: string;
+  /** Human label of accepted formats ("PDF or DOCX") */
+  formatsLabel: string;
   /** Validate a File and start the import pipeline.
    *  Returns the parsed Resume on success, or null if validation failed. */
   importFile: (file: File) => Promise<Resume | null>;
@@ -37,12 +54,18 @@ export interface UseResumeImportReturn {
 // Shared validation
 // ============================================================
 
+/** Human label for the supported formats, used in UI copy. */
+export const SUPPORTED_FORMATS_LABEL = "PDF or DOCX";
+
 function validateFile(file: File): string | null {
-  if (!file.name.toLowerCase().endsWith(".pdf")) {
-    return "Only PDF files are supported. Please upload a PDF resume.";
+  if (!isSupportedResumeFile(file.name)) {
+    return "Only PDF or DOCX files are supported. Please upload a PDF or DOCX resume.";
   }
   if (file.size === 0) {
-    return "The uploaded file is empty. Please select a valid PDF.";
+    return "The uploaded file is empty. Please select a valid resume file.";
+  }
+  if (file.name.toLowerCase().endsWith(".doc")) {
+    return "Legacy .doc files are not supported. Please save the file as .docx and try again.";
   }
   return null;
 }
@@ -131,7 +154,7 @@ export function useResumeImport(): UseResumeImportReturn {
     status,
     errorMessage,
     fileName,
-    acceptedFormats: ".pdf",
+    formatsLabel: SUPPORTED_FORMATS_LABEL,
     importFile,
     cancel,
     reset,

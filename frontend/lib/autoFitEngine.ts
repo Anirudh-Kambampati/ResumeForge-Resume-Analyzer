@@ -19,8 +19,18 @@
 // ============================================================
 
 import { Resume } from "@/types/resume";
-import { type ResumeLayout, getResumeLayout, BASE_LAYOUT } from "@/lib/resumeLayout";
+import {
+  type ResumeLayout,
+  getResumeLayout,
+  getContactIconSize,
+  getContactLineHeight,
+  chunkRows,
+  getCertificationColumns,
+  BASE_LAYOUT,
+} from "@/lib/resumeLayout";
 import { hasSectionData } from "@/config/sections";
+import { getTemplateStyles } from "@/config/templates";
+import { buildATSContactLine } from "@/lib/contactLinks";
 
 // ============================================================
 // Types
@@ -57,11 +67,14 @@ const COMPRESS_STEPS: Record<CompressLevel, LayoutAdjustments> = {
     pagePadding: 28,
   },
 
-  // Level 2 — Reduce header bottom spacing
+  // Level 2 — Reduce header spacing (~65% of base, never back to cramped)
   2: {
-    nameMarginBottom: 1.0,
-    titleMarginBottom: 0.5,
-    headerPaddingBottom: 1.0,
+    nameMarginBottom: 1.5,
+    titleMarginTop: 1.0,
+    titleMarginBottom: 3.0,
+    headerPaddingBottom: 3.0,
+    contactRowGap: 1.5,
+    contactItemGap: 11,
   },
 
   // Level 3 — Reduce spacing between sections
@@ -189,6 +202,37 @@ function estimateLines(
   return Math.max(1, lines);
 }
 
+/**
+ * Estimate how many lines the header contact row wraps onto.
+ * Items are packed greedily: icon + gap + text, separated by contactItemGap.
+ */
+function estimateContactRows(
+  resume: Resume,
+  L: ResumeLayout,
+  availWidthPt: number
+): number {
+  const entries = buildATSContactLine(resume.profile || {});
+  if (entries.length === 0) return 0;
+
+  // Contact values (emails, URLs) are denser than prose — use a wider char estimate
+  const avgCharWidth = L.contactFontSize * 0.55;
+  const iconWidth = getContactIconSize(L) + L.contactIconGap;
+
+  let rows = 1;
+  let lineWidth = 0;
+  for (const entry of entries) {
+    const itemWidth = iconWidth + entry.display.length * avgCharWidth;
+    const needed = lineWidth === 0 ? itemWidth : lineWidth + L.contactItemGap + itemWidth;
+    if (needed > availWidthPt && lineWidth > 0) {
+      rows++;
+      lineWidth = itemWidth;
+    } else {
+      lineWidth = needed;
+    }
+  }
+  return rows;
+}
+
 /** Estimate the height of a single line of text. */
 function textLineHeight(fontSizePt: number, lineHeight: number): number {
   return fontSizePt * lineHeight;
@@ -234,41 +278,39 @@ export function estimateResumeHeight(
   // ==========================================================
 
   // Name
-  const nameSize = layout.nameFontSize;
+  const nameSize = layout.nameFontSize * getTemplateStyles(resume.template).nameSizeMultiplier;
   totalHeight += textLineHeight(nameSize, layout.nameLineHeight);
   totalHeight += layout.nameMarginBottom;
 
-  // Titles
-  if ((resume.profile?.titles?.length ?? 0) > 0) {
-    totalHeight += textLineHeight(layout.titleFontSize, 1.2);
+  // Titles (joined with " | ", may wrap)
+  const titleLine = (resume.profile?.titles || []).filter(Boolean).join(" | ");
+  if (titleLine) {
+    const titleLines = estimateLines(titleLine, layout.titleFontSize, availWidth);
+    totalHeight += layout.titleMarginTop;
+    totalHeight += titleLines * textLineHeight(layout.titleFontSize, layout.titleLineHeight);
     totalHeight += layout.titleMarginBottom;
   }
 
-  // Contact line
-  const contactCount = (() => {
-    const p = resume.profile;
-    let count = 0;
-    if (p?.email) count++;
-    if (p?.phone) count++;
-    if (p?.location) count++;
-    if (p?.links) count += p.links.length;
-    return count;
-  })();
-  if (contactCount > 0) {
-    totalHeight += textLineHeight(layout.contactFontSize, 1.3);
+  // Contact row (icon + text items, centered, wrapping)
+  const contactRows = estimateContactRows(resume, layout, availWidth);
+  if (contactRows > 0) {
+    if (!titleLine) totalHeight += layout.titleMarginTop;
+    totalHeight += contactRows * getContactLineHeight(layout);
+    totalHeight += (contactRows - 1) * layout.contactRowGap;
   }
 
-  // Header bottom margin (uses sectionMarginTop in current code)
-  totalHeight += layout.sectionMarginTop;
+  // Gap before the first section (which adds its own sectionMarginTop)
+  totalHeight += layout.headerPaddingBottom;
 
   // ==========================================================
   // SUMMARY
   // ==========================================================
   if (resume.summary?.enabled && resume.summary.text?.trim()) {
     totalHeight += layout.sectionMarginTop; // section wrapper margin
-    // Section heading
-    totalHeight += textLineHeight(layout.sectionHeaderFontSize, 1.2);
+    // Section heading (see estimateSectionHeight)
+    totalHeight += textLineHeight(layout.sectionHeaderFontSize, layout.bodyTextLineHeight);
     totalHeight += layout.sectionHeaderPaddingBottom;
+    totalHeight += getTemplateStyles(resume.template).sectionHeaderBorderWidth;
     totalHeight += layout.sectionHeaderMarginBottom;
 
     // Summary text
@@ -316,9 +358,11 @@ function estimateSectionHeight(
   // Section margin top
   h += L.sectionMarginTop;
 
-  // Section heading
-  h += textLineHeight(L.sectionHeaderFontSize, 1.2);
+  // Section heading — the PDF heading inherits the page line-height
+  // (bodyTextLineHeight), and the divider's border adds its own width.
+  h += textLineHeight(L.sectionHeaderFontSize, L.bodyTextLineHeight);
   h += L.sectionHeaderPaddingBottom;
+  h += getTemplateStyles(resume.template).sectionHeaderBorderWidth;
   h += L.sectionHeaderMarginBottom;
 
   // ---- Experiences ----
@@ -328,7 +372,7 @@ function estimateSectionHeight(
       const item = items[i];
       if (i > 0) h += L.entryGap;
       // Role title line
-      h += textLineHeight(L.entrySubtitleFontSize, L.entryTitleLineHeight);
+      h += textLineHeight(L.entrySubtitleFontSize, L.bodyTextLineHeight);
       // Company line
       h += textLineHeight(L.entryMetaFontSize, 1.3);
       // Bullets
@@ -343,7 +387,7 @@ function estimateSectionHeight(
     for (let i = 0; i < items.length; i++) {
       if (i > 0) h += L.entryGap;
       // Degree + date inline + institution line
-      h += textLineHeight(L.entrySubtitleFontSize, L.entryTitleLineHeight);
+      h += textLineHeight(L.entrySubtitleFontSize, L.bodyTextLineHeight);
       h += textLineHeight(L.entryMetaFontSize, 1.3);
     }
     return h;
@@ -361,7 +405,7 @@ function estimateSectionHeight(
         L.entrySubtitleFontSize,
         availWidth
       );
-      h += titleLines * textLineHeight(L.entrySubtitleFontSize, L.entryTitleLineHeight);
+      h += titleLines * textLineHeight(L.entrySubtitleFontSize, L.bodyTextLineHeight);
       // Bullets
       h += estimateBulletsHeight(item.bullets || [], L, availWidth);
     }
@@ -375,7 +419,7 @@ function estimateSectionHeight(
       const item = items[i];
       if (i > 0) h += L.entryGap;
       // Title
-      h += textLineHeight(L.entrySubtitleFontSize, L.entryTitleLineHeight);
+      h += textLineHeight(L.entrySubtitleFontSize, L.bodyTextLineHeight);
       // Institution / advisor
       if (item.institution) {
         h += textLineHeight(L.entryMetaFontSize, 1.3);
@@ -393,7 +437,7 @@ function estimateSectionHeight(
       const item = items[i];
       if (i > 0) h += L.entryGap;
       // Title
-      h += textLineHeight(L.entrySubtitleFontSize, L.entryTitleLineHeight);
+      h += textLineHeight(L.entrySubtitleFontSize, L.bodyTextLineHeight);
       // Authors
       if (item.authors) {
         h += textLineHeight(L.entryMetaFontSize, 1.3);
@@ -419,7 +463,8 @@ function estimateSectionHeight(
       // "Title: items" inline — estimate as 1-2 lines
       const text = skill.title + ": " + [...new Set(skill.items.filter(Boolean))].join(", ");
       const lines = estimateLines(text, L.skillsItemFontSize, availWidth);
-      h += lines * textLineHeight(L.skillsItemFontSize, L.skillsItemLineHeight);
+      h += lines * textLineHeight(L.skillsItemFontSize, L.bodyTextLineHeight);
+      h += 1.5; // skill title's marginBottom in the PDF row
       h += L.skillsItemMarginBottom;
     }
     return h;
@@ -442,9 +487,17 @@ function estimateSectionHeight(
 
   // ---- Certifications ----
   if (sectionId === "Certifications") {
+    // Two columns: each row is as tall as its longer (wrapped) entry
     const items = (resume.certifications || []).filter((c) => c.enabled);
-    for (const item of items) {
-      h += textLineHeight(L.certificationsItemFontSize, L.certificationsItemLineHeight);
+    const columns = getCertificationColumns(items.length);
+    const columnWidth = (availWidth - L.certificationsColumnGap * (columns - 1)) / columns;
+    for (const row of chunkRows(items, columns)) {
+      const lines = Math.max(
+        ...row.map((c) =>
+          estimateLines(c.title + (c.issuer ? ` \u2014 ${c.issuer}` : ""), L.certificationsItemFontSize, columnWidth)
+        )
+      );
+      h += lines * textLineHeight(L.certificationsItemFontSize, L.certificationsItemLineHeight);
       h += L.certificationsGap * 0.4;
     }
     return h;

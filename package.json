@@ -1,0 +1,7 @@
+{
+  "name": "resumeforge",
+  "private": true,
+  "scripts": {
+    "dev:all": "node scripts/dev-all.mjs"
+  }
+}

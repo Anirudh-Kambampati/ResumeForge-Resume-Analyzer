@@ -4,16 +4,22 @@ import {
   Font,
   Link,
   Page,
+  Path,
   StyleSheet,
+  Svg,
   Text,
   View,
 } from "@react-pdf/renderer";
 import { Resume } from "@/types/resume";
-import { buildATSContactLine } from "@/lib/contactLinks";
+import { buildATSContactLine, type ContactType } from "@/lib/contactLinks";
+import { getContactIcon } from "@/lib/contactIcons";
 import { getProjectLinkInfo } from "@/lib/projectLinks";
 import { formatDateRange, normalizeDate } from "@/lib/dateFormat";
 import {
   getResumeLayout,
+  getContactIconSize,
+  chunkRows,
+  getCertificationColumns,
   COLORS,
   type ResumeLayout,
 } from "@/lib/resumeLayout";
@@ -44,13 +50,13 @@ const pt = (v: number) => `${v}pt`;
 function buildStyles(L: ResumeLayout, T: TemplateStyles) {
   return StyleSheet.create({
     page: { padding: L.pagePadding, fontFamily: "Sans", fontSize: L.bodyTextFontSize, lineHeight: L.bodyTextLineHeight, color: COLORS.textPrimary },
-    header: { marginBottom: L.headerPaddingBottom },
-    name: { fontFamily: "Sans", fontWeight: T.nameFontWeight, fontSize: L.nameFontSize * T.nameSizeMultiplier, lineHeight: L.nameLineHeight, textAlign: "center", marginBottom: L.nameMarginBottom },
-    titleRow: { fontFamily: "Sans", fontWeight: T.titleFontWeight, fontSize: L.titleFontSize, textAlign: "center", marginBottom: L.titleMarginBottom },
-    contactRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center", fontSize: L.contactFontSize },
-    contactSep: { marginHorizontal: L.contactRowGap * 0.4, color: COLORS.textMuted, fontSize: L.contactFontSize },
-    contactText: { fontFamily: "Sans", fontWeight: 400, fontSize: L.contactFontSize, color: COLORS.textBody },
-    contactLink: { fontFamily: "Sans", fontWeight: 400, fontSize: L.contactFontSize, color: COLORS.textBody, textDecoration: "none" },
+    header: { paddingBottom: L.headerPaddingBottom },
+    name: { fontFamily: "Sans", fontWeight: T.nameFontWeight, fontSize: L.nameFontSize * T.nameSizeMultiplier, lineHeight: L.nameLineHeight, textAlign: "center", color: COLORS.textPrimary, marginBottom: L.nameMarginBottom },
+    titleRow: { fontFamily: "Sans", fontWeight: T.titleFontWeight, fontSize: L.titleFontSize, lineHeight: L.titleLineHeight, letterSpacing: T.titleLetterSpacing, textAlign: "center", color: COLORS.textBody, marginTop: L.titleMarginTop, marginBottom: L.titleMarginBottom },
+    contactRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center", columnGap: L.contactItemGap, rowGap: L.contactRowGap },
+    contactItem: { flexDirection: "row", alignItems: "center", color: COLORS.textBody, textDecoration: "none" },
+    contactIcon: { width: getContactIconSize(L), height: getContactIconSize(L), marginRight: L.contactIconGap },
+    contactText: { fontFamily: "Sans", fontWeight: 400, fontSize: L.contactFontSize, lineHeight: L.contactLineHeight, color: COLORS.textBody, textDecoration: "none" },
     section: { marginTop: L.sectionMarginTop },
     sectionHeading: { fontFamily: "Sans", fontWeight: T.sectionHeaderFontWeight, fontSize: L.sectionHeaderFontSize, letterSpacing: T.sectionHeaderLetterSpacing, textTransform: T.sectionHeaderTransform as "uppercase" },
     sectionDivider: { borderBottomWidth: T.sectionHeaderBorderWidth, borderBottomColor: "#000000", marginTop: L.sectionHeaderPaddingBottom, marginBottom: L.sectionHeaderMarginBottom },
@@ -71,8 +77,10 @@ function buildStyles(L: ResumeLayout, T: TemplateStyles) {
     skillTitle: { fontFamily: "Sans", fontWeight: T.entryTitleFontWeight, fontSize: L.skillsItemFontSize, color: COLORS.textPrimary, marginBottom: 1.5 },
     skillItems: { fontFamily: "Sans", fontWeight: 400, fontSize: L.skillsItemFontSize, color: COLORS.textBody },
     achievementBullet: { flexDirection: "row", marginBottom: L.achievementsItemMarginBottom },
-    certItem: { flexDirection: "row", marginBottom: L.certificationsGap * 0.4 },
-    certText: { fontFamily: "Sans", fontWeight: 400, fontSize: L.certificationsItemFontSize, color: COLORS.textBody },
+    certRow: { flexDirection: "row", marginBottom: L.certificationsGap * 0.4 },
+    certCell: { flexGrow: 1, flexShrink: 1, flexBasis: 0 },
+    certCellLeft: { marginRight: L.certificationsColumnGap },
+    certText: { fontFamily: "Sans", fontWeight: 400, fontSize: L.certificationsItemFontSize, lineHeight: L.certificationsItemLineHeight, color: COLORS.textBody },
     certTitle: { fontFamily: "Sans", fontWeight: T.entryTitleFontWeight, fontSize: L.certificationsItemFontSize, color: COLORS.textPrimary },
     languagesContainer: { marginTop: L.languagesMarginTop, flexDirection: "row", flexWrap: "wrap" },
     langItem: { fontSize: L.languagesItemFontSize, marginRight: L.languagesGap, marginBottom: L.languagesGap * 0.3 },
@@ -80,6 +88,22 @@ function buildStyles(L: ResumeLayout, T: TemplateStyles) {
     langProficiency: { fontFamily: "Sans", fontWeight: 400, fontStyle: "italic", color: COLORS.textSecondary },
   });
 }
+
+const ContactIconPDF = ({ type, styles: stl }: { type: ContactType; styles: ReturnType<typeof buildStyles> }) => {
+  const icon = getContactIcon(type);
+  const color = COLORS.textBody;
+  return (
+    <Svg viewBox={icon.viewBox} style={stl.contactIcon}>
+      {icon.paths.map((d, i) =>
+        icon.mode === "stroke" ? (
+          <Path key={i} d={d} fill="none" stroke={color} strokeWidth={icon.strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+        ) : (
+          <Path key={i} d={d} fill={color} />
+        )
+      )}
+    </Svg>
+  );
+};
 
 const BulletsComp = ({ items, styles: stl }: { items: string[]; styles: ReturnType<typeof buildStyles> }) => (
   <View style={stl.bulletList}>
@@ -248,14 +272,25 @@ function SectionRenderer({ section, resume, S, L }: { section: string; resume: R
   if (section === "Certifications") {
     const items = (resume.certifications || []).filter((item) => item.enabled);
     if (items.length === 0) return null;
+    const columns = getCertificationColumns(items.length);
     return (
       <SectionComp title="Certifications" styles={S}>
-        {items.map((item) => (
-          <View key={item.id} style={S.certItem}>
-            <Text style={S.certText}>
-              <Text style={S.certTitle}>{item.title}</Text>
-              {item.issuer ? ` \u2014 ${item.issuer}` : ""}
-            </Text>
+        {/* Two equal columns, filled row by row */}
+        {chunkRows(items, columns).map((row) => (
+          <View key={row[0].id} style={S.certRow}>
+            {Array.from({ length: columns }, (_, col) => {
+              const item = row[col];
+              return (
+                <View key={col} style={col < columns - 1 ? [S.certCell, S.certCellLeft] : S.certCell}>
+                  {item && (
+                    <Text style={S.certText}>
+                      <Text style={S.certTitle}>{item.title}</Text>
+                      {item.issuer ? ` \u2014 ${item.issuer}` : ""}
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
           </View>
         ))}
       </SectionComp>
@@ -292,6 +327,7 @@ export const ResumePDFDocument = ({ resume }: { resume: Resume }) => {
   const S = buildStyles(L, T);
   const profile = resume.profile;
   const atsContact = buildATSContactLine(profile);
+  const titleLine = (profile.titles || []).filter(Boolean).join(" | ");
   const sectionsToRender = (resume.sectionOrder || []).filter((section) => hasSectionData(resume, section));
 
   return (
@@ -299,21 +335,27 @@ export const ResumePDFDocument = ({ resume }: { resume: Resume }) => {
       <Page size="A4" style={S.page}>
         {/* HEADER — full width */}
         <View style={S.header}>
+          {/* Name → Titles → Contact */}
           <Text style={S.name}>{profile.fullName || "Candidate Name"}</Text>
 
-          {atsContact.length > 0 && (
-            <View style={S.contactRow}>
-              {atsContact.map((entry, idx) => (
-                <React.Fragment key={idx}>
-                  {idx > 0 && <Text style={S.contactSep}>|</Text>}
-                  {entry.href ? (<Link src={entry.href} style={S.contactLink}>{entry.display}</Link>) : (<Text style={S.contactText}>{entry.display}</Text>)}
-                </React.Fragment>
-              ))}
-            </View>
-          )}
+          {titleLine && <Text style={S.titleRow}>{titleLine}</Text>}
 
-          {(profile.titles?.length ?? 0) > 0 && (
-            <Text style={S.titleRow}>{profile.titles.filter(Boolean).join(" | ")}</Text>
+          {atsContact.length > 0 && (
+            <View style={[S.contactRow, { marginTop: titleLine ? 0 : L.titleMarginTop }]}>
+              {atsContact.map((entry, idx) =>
+                entry.href ? (
+                  <Link key={idx} src={entry.href} style={S.contactItem}>
+                    <ContactIconPDF type={entry.type} styles={S} />
+                    <Text style={S.contactText}>{entry.display}</Text>
+                  </Link>
+                ) : (
+                  <View key={idx} style={S.contactItem}>
+                    <ContactIconPDF type={entry.type} styles={S} />
+                    <Text style={S.contactText}>{entry.display}</Text>
+                  </View>
+                )
+              )}
+            </View>
           )}
         </View>
 

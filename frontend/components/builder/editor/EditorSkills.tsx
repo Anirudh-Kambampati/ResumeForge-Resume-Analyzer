@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Resume, SkillCategory } from "@/types/resume";
 import { Plus, Trash } from "lucide-react";
+import MoveButtons, { moveItem } from "@/components/ui/MoveButtons";
 import ClearableInput from "@/components/ui/ClearableInput";
 import ClearableTextarea from "@/components/ui/ClearableTextarea";
 
@@ -90,7 +91,7 @@ export default function EditorSkills({ resume, setResume }: Props) {
 
       {/* Category List */}
       <div className="space-y-5">
-        {resume.skills.map((category) => (
+        {resume.skills.map((category, index) => (
           <div
             key={category.id}
             className="
@@ -110,7 +111,9 @@ export default function EditorSkills({ resume, setResume }: Props) {
                 placeholder="Category Title (e.g. Languages)"
                 className="bg-transparent border-none text-lg font-medium text-white w-1/2 border-b border-dashed border-white/10 focus:border-blue-500 pb-0.5"
               />
-              <button
+              <div className="flex items-center gap-1">
+                <MoveButtons index={index} count={resume.skills.length} onMove={(dir) => updateSkills(moveItem(resume.skills, index, dir))} />
+                <button
                 onClick={() => removeCategory(category.id)}
                 className="
                   p-1.5
@@ -123,6 +126,7 @@ export default function EditorSkills({ resume, setResume }: Props) {
               >
                 <Trash size={16} />
               </button>
+              </div>
             </div>
 
             <div className="space-y-1">

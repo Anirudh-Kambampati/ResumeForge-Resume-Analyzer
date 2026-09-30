@@ -1,4 +1,5 @@
 """Deterministic Job Match calculation. AI may only supply structured JD requirements."""
+import math
 import re
 from typing import Any, Dict, List
 from services.scoring_service import normalize_skill, parse_resume, SKILL_ALIASES
@@ -12,6 +13,35 @@ def _match(term: str, text: str) -> str | None:
         if re.search(rf"(?<!\w){re.escape(alias)}(?!\w)",text,re.I): return "exact" if alias==term else "canonical_alias"
     return None
 
+_STOPWORDS = {
+    "and", "the", "for", "with", "from", "into", "onto", "our", "your", "their", "that", "this",
+    "of", "to", "in", "on", "at", "by", "or", "an", "a", "as", "is", "are", "be", "we", "you",
+    "using", "use", "across", "within", "other", "all", "new", "etc",
+}
+
+# A responsibility counts as demonstrated when this share of its key words appear.
+_RESPONSIBILITY_WORD_SHARE = 0.6
+
+
+def _significant_words(text: str, min_len: int) -> List[str]:
+    words = re.findall(r"[a-z][a-z0-9+#]*", text.lower())
+    return list(dict.fromkeys(w for w in words if len(w) >= min_len and w not in _STOPWORDS))
+
+
+def _word_present(word: str, text: str) -> bool:
+    """Whole-word match that tolerates simple inflections (api/apis, design/designed).
+
+    Short words (e.g. "ai", "ml") must match exactly (optional plural "s") so they
+    can't match inside longer words like "email".
+    """
+    stem = word[:-1] if word.endswith("s") and len(word) > 3 else word
+    if len(stem) < 4:
+        pattern = rf"(?<![a-z0-9]){re.escape(stem)}s?(?![a-z0-9])"
+    else:
+        pattern = rf"(?<![a-z0-9]){re.escape(stem)}[a-z]*(?![a-z0-9])"
+    return re.search(pattern, text) is not None
+
+
 def _ratio_score(matches:int,total:int,maximum:int, neutral:bool=False)->int:
     return maximum if neutral else round(maximum*matches/max(1,total))
 
@@ -19,9 +49,13 @@ def calculate_job_match(resume_text: str, jd_requirements: Dict[str, Any], _unus
     parsed=parse_resume(resume_text); all_text=resume_text.lower(); experience=" ".join(parsed['sections'].get('experience',[])).lower(); projects=" ".join(parsed['sections'].get('projects',[])).lower()
     title=normalize_skill(jd_requirements.get('target_title','')); header=parsed['header_region'].lower()
     if title and re.search(rf"(?<!\w){re.escape(title)}(?!\w)",header): title_type="exact"
-    elif title and all(t in header for t in title.split()): title_type="normalized_close"
-    elif title and any(t in header for t in title.split()): title_type="related"
-    else: title_type="none"
+    else:
+        # Whole-word matching — substring checks let "ai" match inside "email"
+        title_words=_significant_words(title,2)
+        present=sum(_word_present(w,header) for w in title_words)
+        if title_words and present==len(title_words): title_type="normalized_close"
+        elif title_words and present*2>=len(title_words): title_type="related"
+        else: title_type="none"
     title_score={"exact":15,"normalized_close":12,"related":6,"none":0}[title_type]
     def skill_category(name:str, maximum:int):
         requested=_unique(jd_requirements.get(name,[])); matched=[]; missing=[]; types={}
@@ -38,9 +72,12 @@ def calculate_job_match(resume_text: str, jd_requirements: Dict[str, Any], _unus
         else: missing.append(term)
     terminology={"score":_ratio_score(len(exact)+len(aliases),len(terms),15,not terms),"max_score":15,"evidence":{"exact_matches":exact,"canonical_alias_matches":aliases,"missing_terms":missing,"neutral_no_evidence":not terms}}
     responsibilities=_unique(jd_requirements.get('responsibilities',[])); resp_matches=[]
+    evidence_text=experience+" "+projects
     for r in responsibilities:
-        words=[w for w in re.findall(r"[a-z]{3,}",r) if w not in {'with','and','the','for'}]
-        if words and any(re.search(rf"(?<!\w){re.escape(w)}(?!\w)",experience+" "+projects) for w in words): resp_matches.append(r)
+        # Most of the responsibility's key words must appear, not just any one
+        words=_significant_words(r,3)
+        needed=max(1,math.ceil(len(words)*_RESPONSIBILITY_WORD_SHARE))
+        if words and sum(_word_present(w,evidence_text) for w in words)>=needed: resp_matches.append(r)
     responsibility={"score":_ratio_score(len(resp_matches),len(responsibilities),10,not responsibilities),"max_score":10,"evidence":{"matched_responsibilities":resp_matches,"missing_responsibilities":[x for x in responsibilities if x not in resp_matches],"evidence_locations":{"experience":experience,"projects":projects}}}
     required_terms=required['evidence']['matched_required_skills']; demonstrated=[s for s in required_terms if _match(s,experience) or _match(s,projects)]
     relevance={"score":_ratio_score(len(demonstrated),len(required['evidence']['required_skills']),15,not required['evidence']['required_skills']),"max_score":15,"evidence":{"demonstrated_terms":demonstrated,"project_evidence":[s for s in demonstrated if _match(s,projects)],"experience_evidence":[s for s in demonstrated if _match(s,experience)]}}

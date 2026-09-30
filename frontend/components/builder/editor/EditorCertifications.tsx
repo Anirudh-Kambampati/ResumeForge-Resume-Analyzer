@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Resume, Certification } from "@/types/resume";
 import { Plus, Trash, ChevronDown, ChevronUp } from "lucide-react";
+import MoveButtons, { moveItem } from "@/components/ui/MoveButtons";
 import ClearableInput from "@/components/ui/ClearableInput";
 
 type Props = {
@@ -140,6 +141,7 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <MoveButtons index={index} count={resume.certifications.length} onMove={(dir) => updateCertifications(moveItem(resume.certifications, index, dir))} />
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

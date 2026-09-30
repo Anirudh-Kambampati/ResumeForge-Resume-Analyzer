@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Resume, Project } from "@/types/resume";
 import { Plus, Trash, ChevronDown, ChevronUp, Sparkles, Check, X, AlertCircle } from "lucide-react";
 import { normalizeError } from "@/lib/errorHelper";
+import { apiPostJson } from "@/lib/api";
 import { getProjectLinkInfo } from "@/lib/projectLinks";
 import ClearableInput from "@/components/ui/ClearableInput";
 import ClearableTextarea from "@/components/ui/ClearableTextarea";
@@ -134,29 +135,11 @@ export default function EditorProjects({ resume, setResume }: Props) {
     setAiSuggestion(null);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const res = await fetch(`${apiBase}/api/improve`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          type: "project_bullet",
-          text: currentText,
-          context: projectTitle,
-        }),
+      const data = await apiPostJson<{ improved_text: string }>("/api/improve", {
+        type: "project_bullet",
+        text: currentText,
+        context: projectTitle,
       });
-
-      if (!res.ok) {
-        let errText = await res.text();
-        try {
-          const errJson = JSON.parse(errText);
-          errText = normalizeError(errJson);
-        } catch {}
-        throw new Error(errText || "Failed to improve bullet");
-      }
-
-      const data = await res.json();
       setAiSuggestion({ itemId, bulletIdx, text: data.improved_text });
     } catch (e: unknown) {
       console.error(e);

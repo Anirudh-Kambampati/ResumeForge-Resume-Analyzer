@@ -167,12 +167,6 @@ export function normalizeUrl(value?: string): string {
   return normalizeExternalUrl(value) || "";
 }
 
-export function normalizeEmail(value?: string): string {
-  const trimmed = value?.trim() || "";
-  if (!trimmed) return "";
-  return /^mailto:/i.test(trimmed) ? trimmed : `mailto:${trimmed}`;
-}
-
 // ============================================================
 // Get display label for a ResumeLink (username or domain)
 // ============================================================
@@ -189,16 +183,7 @@ export function getLinkDisplay(link: { label: string; url: string; username?: st
   }
 }
 
-// ============================================================
-// Known platform labels list
-// ============================================================
 
-export const KNOWN_PLATFORM_LABELS = Object.keys(PLATFORM_CONFIGS);
-
-export const KNOWN_PLATFORMS = Object.values(PLATFORM_CONFIGS).map((p) => ({
-  label: p.label,
-  icon: p.icon,
-}));
 
 // ============================================================
 // ATS Contact Formatter — ordered, normalized, deduplicated
@@ -211,7 +196,18 @@ export const KNOWN_PLATFORMS = Object.values(PLATFORM_CONFIGS).map((p) => ({
 // Empty values are filtered out.
 // ============================================================
 
+export type ContactType =
+  | "email"
+  | "phone"
+  | "location"
+  | "linkedin"
+  | "github"
+  | "portfolio"
+  | "other";
+
 export interface ATSContactEntry {
+  /** What kind of contact this is — used to pick the header icon */
+  type: ContactType;
   /** The normalized display text (machine-readable) */
   display: string;
   /** Optional clickable URL (null for phone/location) */
@@ -258,6 +254,9 @@ function normalizeGitHub(url: string): string | null {
   return null;
 }
 
+/** Link labels treated as a personal website (globe icon) rather than a generic link. */
+const PORTFOLIO_LABEL_PATTERN = /^(portfolio|website|personal (site|website)|homepage|blog)$/i;
+
 /**
  * Build an ordered, normalized, deduplicated contact line for ATS rendering.
  *
@@ -280,31 +279,31 @@ export function buildATSContactLine(profile: {
   const result: ATSContactEntry[] = [];
   const seen = new Set<string>();
 
-  function add(display: string, href?: string) {
+  function add(type: ContactType, display: string, href?: string) {
     const key = display.toLowerCase().trim();
     if (!key || seen.has(key)) return;
     seen.add(key);
-    result.push({ display: display.trim(), href });
+    result.push({ type, display: display.trim(), href });
   }
 
   // 1. Phone — preserve user value, trim whitespace
   if (profile.phone?.trim()) {
-    add(profile.phone.trim());
+    add("phone", profile.phone.trim());
   }
 
   // 2. Email — trim and lowercase for display
   if (profile.email?.trim()) {
     const email = profile.email.trim().toLowerCase();
-    add(email, `mailto:${email}`);
+    add("email", email, `mailto:${email}`);
   }
 
   // 3. Location — preserve user value
   if (profile.location?.trim()) {
-    add(profile.location.trim());
+    add("location", profile.location.trim());
   }
 
   // 4–6. Links — detect platform, normalize display, deduplicate
-  const linkEntries: { display: string; href: string; sortKey: number }[] = [];
+  const linkEntries: { type: ContactType; display: string; href: string; sortKey: number }[] = [];
 
   for (const link of profile.links || []) {
     const href = normalizeExternalUrl(link.url);
@@ -312,25 +311,35 @@ export function buildATSContactLine(profile: {
 
     let display: string | null = null;
     let sortKey = 99;
+    let type: ContactType = "other";
 
     // Try LinkedIn
     display = normalizeLinkedIn(href);
-    if (display) sortKey = 1;
+    if (display) {
+      sortKey = 1;
+      type = "linkedin";
+    }
 
     // Try GitHub
     if (!display) {
       display = normalizeGitHub(href);
-      if (display) sortKey = 2;
+      if (display) {
+        sortKey = 2;
+        type = "github";
+      }
     }
 
-    // Fallback: generic portfolio link
+    // Fallback: portfolio or other custom link (same sort position)
     if (!display) {
       display = normalizeLinkDisplay(href);
-      if (display) sortKey = 3;
+      if (display) {
+        sortKey = 3;
+        type = PORTFOLIO_LABEL_PATTERN.test(link.label.trim()) ? "portfolio" : "other";
+      }
     }
 
     if (display) {
-      linkEntries.push({ display, href, sortKey });
+      linkEntries.push({ type, display, href, sortKey });
     }
   }
 
@@ -343,57 +352,10 @@ export function buildATSContactLine(profile: {
     const key = entry.display.toLowerCase();
     if (linkSeen.has(key)) continue;
     linkSeen.add(key);
-    add(entry.display, entry.href);
+    add(entry.type, entry.display, entry.href);
   }
 
   return result;
 }
 
-// ============================================================
-// Legacy buildContactItems — retained for backward compatibility
-// ============================================================
 
-export interface ContactItem {
-  type: "email" | "phone" | "location" | "link";
-  label: string;
-  href?: string;
-  icon?: string;
-  platformLabel?: string;
-}
-
-export function buildContactItems(profile: {
-  email?: string;
-  phone?: string;
-  location?: string;
-  links?: { label: string; url: string; username?: string }[];
-}): ContactItem[] {
-  const items: ContactItem[] = [];
-
-  if (profile.email) {
-    items.push({ type: "email", label: profile.email, href: normalizeEmail(profile.email) });
-  }
-  if (profile.phone) {
-    items.push({ type: "phone", label: profile.phone });
-  }
-  if (profile.location) {
-    items.push({ type: "location", label: profile.location });
-  }
-  for (const link of profile.links || []) {
-    const href = normalizeExternalUrl(link.url);
-    if (href) {
-      const platform = detectPlatform(href);
-      const displayLabel = link.username
-        || (platform ? extractUsername(href, platform) : "")
-        || getLinkDisplay(link);
-      items.push({
-        type: "link",
-        label: displayLabel,
-        href,
-        platformLabel: link.label,
-        icon: platform || undefined,
-      });
-    }
-  }
-
-  return items;
-}

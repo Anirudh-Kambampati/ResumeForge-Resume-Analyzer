@@ -14,6 +14,7 @@
 
 import { Resume } from "@/types/resume";
 import { getLayoutSections } from "@/config/layouts";
+import { apiPostForm } from "@/lib/api";
 
 // ============================================================
 // ID generation — simple counter-based to keep IDs predictable
@@ -411,27 +412,11 @@ export async function uploadAndParseResume(
   const formData = new FormData();
   formData.append("resume", file);
 
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}/api/ats/optimize`,
-    {
-      method: "POST",
-      body: formData,
-      signal,
-    },
+  const data = await apiPostForm<AtsOptimizeResponse>(
+    "/api/ats/optimize",
+    formData,
+    signal,
   );
-
-  if (!response.ok) {
-    let detail = `Server returned ${response.status}`;
-    try {
-      const err = await response.json();
-      if (err.detail) detail = err.detail;
-    } catch {
-      // ignore parse failure
-    }
-    throw new Error(detail);
-  }
-
-  const data: AtsOptimizeResponse = await response.json();
   let resume = atsResponseToResume(data);
 
   // Post-process: classify profile links with strict priority

@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { Resume, Achievement } from "@/types/resume";
 import { Plus, Trash, ChevronDown, ChevronUp, Sparkles, Check, X, AlertCircle } from "lucide-react";
+import MoveButtons, { moveItem } from "@/components/ui/MoveButtons";
 import { normalizeError } from "@/lib/errorHelper";
+import { apiPostJson } from "@/lib/api";
 import ClearableInput from "@/components/ui/ClearableInput";
 import ClearableTextarea from "@/components/ui/ClearableTextarea";
 
@@ -61,29 +63,14 @@ export default function EditorAchievements({ resume, setResume }: Props) {
     setAiSuggestion(null);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const res = await fetch(`${apiBase}/api/improve`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const data = await apiPostJson<{ improved_text: string; insight?: string }>(
+        "/api/improve",
+        {
           type: "achievement",
           text: currentText,
           context: title,
-        }),
-      });
-
-      if (!res.ok) {
-        let errText = await res.text();
-        try {
-          const errJson = JSON.parse(errText);
-          errText = normalizeError(errJson);
-        } catch {}
-        throw new Error(errText || "Failed to improve achievement");
-      }
-
-      const data = await res.json();
+        },
+      );
       setAiSuggestion({ id, text: data.improved_text, insight: data.insight });
     } catch (e: unknown) {
       console.error(e);
@@ -187,6 +174,7 @@ export default function EditorAchievements({ resume, setResume }: Props) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <MoveButtons index={index} count={resume.achievements.length} onMove={(dir) => updateAchievements(moveItem(resume.achievements, index, dir))} />
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

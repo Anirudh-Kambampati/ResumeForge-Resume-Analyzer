@@ -22,11 +22,22 @@ export interface ResumeLayout {
   nameLineHeight: number;
   nameMarginBottom: number;
   titleFontSize: number;
+  titleLineHeight: number;
+  /** Extra gap above the titles line (added to nameMarginBottom) */
   titleMarginTop: number;
+  /** Gap between the titles line and the contact row */
   titleMarginBottom: number;
   titleLetterSpacing: number;
   contactFontSize: number;
+  contactLineHeight: number;
+  /** Vertical gap between wrapped lines of the contact row */
   contactRowGap: number;
+  /** Horizontal gap between contact items */
+  contactItemGap: number;
+  /** Gap between a contact item's icon and its text */
+  contactIconGap: number;
+  /** Icon size as a multiple of contactFontSize */
+  contactIconScale: number;
 
   // Column layout (two-column templates)
   columnGap: number;
@@ -63,6 +74,8 @@ export interface ResumeLayout {
   achievementsItemMarginBottom: number;
   certificationsMarginTop: number;
   certificationsGap: number;
+  /** Horizontal gap between the two certification columns */
+  certificationsColumnGap: number;
   certificationsItemFontSize: number;
   certificationsItemLineHeight: number;
   languagesMarginTop: number;
@@ -86,18 +99,25 @@ export interface ResumeLayout {
 // ============================================================
 
 export const BASE_LAYOUT: ResumeLayout = {
-  // Page & header — reduced padding & spacing for higher content density
+  // Page & header
+  // Header lines: name → titles → contact row, then headerPaddingBottom
+  // before the first section (which adds its own sectionMarginTop).
   pagePadding: 32,
-  headerPaddingBottom: 2,
+  headerPaddingBottom: 5,
   nameFontSize: 22,
   nameLineHeight: 1.1,
-  nameMarginBottom: 2.0,
+  nameMarginBottom: 2.5,
   titleFontSize: 10.5,
-  titleMarginTop: 0,
-  titleMarginBottom: 1.0,
+  titleLineHeight: 1.25,
+  titleMarginTop: 1.5,
+  titleMarginBottom: 4.5,
   titleLetterSpacing: 0,
   contactFontSize: 8.5,
-  contactRowGap: 3.5,
+  contactLineHeight: 1.3,
+  contactRowGap: 2.5,
+  contactItemGap: 14,
+  contactIconGap: 3.5,
+  contactIconScale: 1.15,
 
   // Column layout (inert for single-column templates)
   columnGap: 0,
@@ -147,6 +167,7 @@ export const BASE_LAYOUT: ResumeLayout = {
   // Certifications
   certificationsMarginTop: 0,
   certificationsGap: 5,
+  certificationsColumnGap: 16,
   certificationsItemFontSize: 9.5,
   certificationsItemLineHeight: 1.3,
 
@@ -174,24 +195,27 @@ export function getResumeLayout(resume: Resume): ResumeLayout {
   return TEMPLATE_LAYOUTS[resume.template];
 }
 
-// ============================================================
-// Section order — single source of truth
-// ============================================================
+/** Rendered size (pt) of a contact-row icon. */
+export function getContactIconSize(L: ResumeLayout): number {
+  return L.contactFontSize * L.contactIconScale;
+}
 
-export const SECTION_ORDER = [
-  "Summary",
-  "Experience",
-  "Education",
-  "Projects",
-  "Research",
-  "Publications",
-  "Skills",
-  "Achievements",
-  "Certifications",
-  "Languages",
-] as const;
+/** Height (pt) of one line of the contact row — the taller of text and icon. */
+export function getContactLineHeight(L: ResumeLayout): number {
+  return Math.max(L.contactFontSize * L.contactLineHeight, getContactIconSize(L));
+}
 
-export type SectionName = (typeof SECTION_ORDER)[number];
+/** Certifications use two columns, except a lone item which spans the full width. */
+export function getCertificationColumns(count: number): number {
+  return count > 1 ? 2 : 1;
+}
+
+/** Split a list into rows of `size` items (used for multi-column sections). */
+export function chunkRows<T>(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += size) rows.push(items.slice(i, i + size));
+  return rows;
+}
 
 // ============================================================
 // Color palette — shared across renderers

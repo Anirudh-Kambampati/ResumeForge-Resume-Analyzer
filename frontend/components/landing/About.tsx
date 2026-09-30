@@ -17,7 +17,7 @@ const faqs = [
   {
     question: "Which file formats are supported?",
     answer:
-      "PDF is currently supported. DOCX support is planned in a future update.",
+      "PDF and DOCX are supported for import and analysis. Legacy .doc files should be saved as .docx first.",
   },
   {
     question: "How accurate is the ATS score?",

@@ -38,7 +38,7 @@ const DEPLOY_PLATFORM_PATTERNS = [
 // Never returns an empty string. Every URL maps to a label.
 // ============================================================
 
-export function classifyProjectLink(url: string): string {
+function classifyProjectLink(url: string): string {
   // 1. Known code-hosting platforms → platform name
   for (const [label, patterns] of Object.entries(CODE_HOST_PATTERNS)) {
     for (const pattern of patterns) {
@@ -91,31 +91,4 @@ export function getProjectLinkInfo(link?: string): ProjectLinkInfo | null {
   }
 }
 
-// ============================================================
-// Project Header — constructs "Title | Technologies" from structured data
-//
-// Single source of truth for ALL renderers (PDF, web preview).
-// Never concatenates raw text — always builds from structured fields.
-// ============================================================
 
-/**
- * Build a project header string from structured title and technologies.
- *
- * Renders:
- *   "Project Title | Tech1, Tech2, Tech3"   if technologies is non-empty
- *   "Project Title"                          if technologies is empty
- *
- * The caller is responsible for stripping pipe-separated tech text from
- * the title (handled during import by project_normalizer.py).  This
- * function only joins what it receives — it does NOT parse the title.
- */
-export function buildProjectHeader(
-  title?: string,
-  technologies?: string[],
-): string {
-  const t = (title || "").trim();
-  const techs = (technologies || []).filter(Boolean);
-  if (!t && techs.length === 0) return "";
-  if (techs.length === 0) return t;
-  return `${t} | ${techs.join(", ")}`;
-}

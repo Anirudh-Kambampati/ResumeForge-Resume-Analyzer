@@ -4,10 +4,11 @@ import React from "react";
 import { Resume } from "@/types/resume";
 import { BuilderSection } from "@/store/resumeStore";
 import { Inter } from "next/font/google";
-import { buildATSContactLine } from "@/lib/contactLinks";
+import { buildATSContactLine, type ContactType } from "@/lib/contactLinks";
+import { getContactIcon } from "@/lib/contactIcons";
 import { getProjectLinkInfo } from "@/lib/projectLinks";
 import { formatDateRange, normalizeDate } from "@/lib/dateFormat";
-import { getResumeLayout } from "@/lib/resumeLayout";
+import { getResumeLayout, getContactIconSize, chunkRows, getCertificationColumns, COLORS } from "@/lib/resumeLayout";
 import { hasSectionData } from "@/config/sections";
 import { getTemplateStyles } from "@/config/templates";
 import {
@@ -21,6 +22,28 @@ const inter = Inter({
   weight: ["400", "500", "600", "700"],
   display: "swap",
 });
+
+/** Contact-row icon — same path data as the PDF renderer's ContactIconPDF. */
+function ContactIconSvg({ type, sizePt, gapPt }: { type: ContactType; sizePt: number; gapPt: number }) {
+  const icon = getContactIcon(type);
+  const color = COLORS.textBody;
+  return (
+    <svg
+      viewBox={icon.viewBox}
+      aria-hidden="true"
+      focusable="false"
+      style={{ width: `${sizePt}pt`, height: `${sizePt}pt`, marginRight: `${gapPt}pt`, flexShrink: 0, display: "block" }}
+    >
+      {icon.paths.map((d, i) =>
+        icon.mode === "stroke" ? (
+          <path key={i} d={d} fill="none" stroke={color} strokeWidth={icon.strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+        ) : (
+          <path key={i} d={d} fill={color} />
+        )
+      )}
+    </svg>
+  );
+}
 
 type Props = {
   resume: Resume;
@@ -68,6 +91,7 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
 
   const profile = resume.profile || {};
   const atsContact = buildATSContactLine(profile);
+  const titleLine = (profile.titles || []).filter(Boolean).join(" | ");
 
   // ============================================================
   // Section heading renderer
@@ -485,28 +509,42 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
       );
     }
 
-    // ---- CERTIFICATIONS (single column) ----
+    // ---- CERTIFICATIONS (two columns, filled row by row) ----
     if (sectionId === "Certifications") {
       const items = (resume.certifications || []).filter((item) => item.enabled);
       if (items.length === 0) return null;
       return (
         <SectionContainer label="Certifications" section="Certifications">
-          {items.map((item) => (
+          {chunkRows(items, getCertificationColumns(items.length)).map((row) => (
             <div
-              key={item.id}
-              style={{
-                marginBottom: pt(L.certificationsGap * 0.4),
-              }}
+              key={row[0].id}
+              style={{ display: "flex", marginBottom: pt(L.certificationsGap * 0.4) }}
             >
-              <span
-                className="text-neutral-700"
-                style={{ fontSize: pt(L.certificationsItemFontSize), lineHeight: String(L.certificationsItemLineHeight) }}
-              >
-                <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
-                  {item.title}
-                </span>
-                {item.issuer ? ` \u2014 ${item.issuer}` : ""}
-              </span>
+              {Array.from({ length: getCertificationColumns(items.length) }, (_, col) => {
+                const item = row[col];
+                return (
+                  <div
+                    key={col}
+                    style={{
+                      flex: "1 1 0",
+                      minWidth: 0,
+                      marginRight: col < getCertificationColumns(items.length) - 1 ? pt(L.certificationsColumnGap) : 0,
+                      fontSize: pt(L.certificationsItemFontSize),
+                      lineHeight: String(L.certificationsItemLineHeight),
+                      color: COLORS.textBody,
+                    }}
+                  >
+                    {item && (
+                      <>
+                        <span style={{ fontWeight: T.entryTitleFontWeight, color: COLORS.textPrimary }}>
+                          {item.title}
+                        </span>
+                        {item.issuer ? ` \u2014 ${item.issuer}` : ""}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </SectionContainer>
@@ -572,66 +610,77 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
       style={{ padding: pt(L.pagePadding) }}
     >
       {/* HEADER */}
+      {/* flex-col so header margins add up like react-pdf's instead of collapsing */}
       <header
-        className={`text-center ${highlight("Profile")}`}
-        style={{ marginBottom: pt(L.headerPaddingBottom) }}
+        className={`flex flex-col text-center ${highlight("Profile")}`}
+        style={{ paddingBottom: pt(L.headerPaddingBottom) }}
       >
+        {/* Name → Titles → Contact */}
         <h1
-          className="tracking-tight text-neutral-900"
           style={{
             fontSize: pt(L.nameFontSize * T.nameSizeMultiplier),
             fontWeight: T.nameFontWeight,
             lineHeight: String(L.nameLineHeight),
+            color: COLORS.textPrimary,
             marginBottom: pt(L.nameMarginBottom),
           }}
         >
           {profile.fullName || "Your Full Name"}
         </h1>
 
-        {/* Name → Contact → Titles */}
-        {atsContact.length > 0 && (
-          <div
-            className="flex flex-wrap justify-center items-center text-neutral-600"
-            style={{
-              fontSize: pt(L.contactFontSize),
-              marginBottom: pt(L.contactRowGap),
-            }}
-          >
-            {atsContact.map((entry, idx) => (
-              <React.Fragment key={idx}>
-                {idx > 0 && (
-                  <span className="text-neutral-300 select-none" style={{ margin: `0 ${pt(L.contactRowGap * 0.4)}` }}>
-                    |
-                  </span>
-                )}
-                {entry.href ? (
-                  <a
-                    href={entry.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ textDecoration: "none", color: "#404040" }}
-                  >
-                    {entry.display}
-                  </a>
-                ) : (
-                  <span>{entry.display}</span>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        )}
-
-        {(profile.titles?.length ?? 0) > 0 && (
+        {titleLine && (
           <p
-            className="text-neutral-700"
             style={{
               fontSize: pt(L.titleFontSize),
               fontWeight: T.titleFontWeight,
+              lineHeight: String(L.titleLineHeight),
+              letterSpacing: pt(T.titleLetterSpacing),
+              color: COLORS.textBody,
+              marginTop: pt(L.titleMarginTop),
               marginBottom: pt(L.titleMarginBottom),
             }}
           >
-            {profile.titles.filter(Boolean).join(" | ")}
+            {titleLine}
           </p>
+        )}
+
+        {atsContact.length > 0 && (
+          <div
+            className="flex flex-wrap justify-center items-center"
+            style={{
+              fontSize: pt(L.contactFontSize),
+              lineHeight: String(L.contactLineHeight),
+              color: COLORS.textBody,
+              columnGap: pt(L.contactItemGap),
+              rowGap: pt(L.contactRowGap),
+              marginTop: titleLine ? 0 : pt(L.titleMarginTop),
+            }}
+          >
+            {atsContact.map((entry, idx) => {
+              const content = (
+                <>
+                  <ContactIconSvg type={entry.type} sizePt={getContactIconSize(L)} gapPt={L.contactIconGap} />
+                  <span>{entry.display}</span>
+                </>
+              );
+              return entry.href ? (
+                <a
+                  key={idx}
+                  href={entry.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center"
+                  style={{ textDecoration: "none", color: COLORS.textBody }}
+                >
+                  {content}
+                </a>
+              ) : (
+                <span key={idx} className="inline-flex items-center">
+                  {content}
+                </span>
+              );
+            })}
+          </div>
         )}
       </header>
 

@@ -14,6 +14,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { normalizeError } from "@/lib/errorHelper";
+import { apiPostJson } from "@/lib/api";
 import { detectPlatform, extractUsername, normalizeUrl } from "@/lib/contactLinks";
 import ClearableInput from "@/components/ui/ClearableInput";
 import ClearableTextarea from "@/components/ui/ClearableTextarea";
@@ -161,22 +162,10 @@ export default function EditorAbout({ resume, setResume }: Props) {
     setSummaryError(null);
     setSummarySuggestion(null);
     try {
-      const apiBase =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const res = await fetch(`${apiBase}/api/improve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "summary", text: summaryText }),
+      const data = await apiPostJson<{ improved_text: string }>("/api/improve", {
+        type: "summary",
+        text: summaryText,
       });
-      if (!res.ok) {
-        let errText = await res.text();
-        try {
-          const errJson = JSON.parse(errText);
-          errText = normalizeError(errJson);
-        } catch {}
-        throw new Error(errText || "Failed to improve text");
-      }
-      const data = await res.json();
       setSummarySuggestion(data.improved_text);
     } catch (e: unknown) {
       console.error(e);

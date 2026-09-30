@@ -11,7 +11,7 @@ import {
   AlertCircle,
   ArrowLeft,
 } from "lucide-react";
-import { useResumeImport } from "@/lib/useResumeImport";
+import { useResumeImport, RESUME_ACCEPT_ATTRIBUTE } from "@/lib/useResumeImport";
 
 // ============================================================
 // Component
@@ -102,8 +102,8 @@ export default function ImportPage() {
               Import Resume
             </h1>
             <p className="mt-2 text-sm leading-6 text-zinc-500">
-              Upload an existing PDF resume and we&apos;ll automatically
-              populate the builder with your content.
+              Upload an existing PDF or DOCX resume and we&apos;ll
+              automatically populate the builder with your content.
             </p>
           </div>
 
@@ -144,7 +144,7 @@ export default function ImportPage() {
                   <input
                     ref={inputRef}
                     type="file"
-                    accept=".pdf"
+                    accept={RESUME_ACCEPT_ATTRIBUTE}
                     className="hidden"
                     onChange={handleFileInputChange}
                   />
@@ -165,11 +165,11 @@ export default function ImportPage() {
 
                   <p className="text-base font-medium text-zinc-300">
                     {dragOver
-                      ? "Drop your PDF here"
-                      : "Drag & drop your PDF here"}
+                      ? "Drop your resume here"
+                      : "Drag & drop your resume here"}
                   </p>
                   <p className="mt-1.5 text-sm text-zinc-600">
-                    or click to browse — PDF only
+                    or click to browse — PDF or DOCX
                   </p>
                 </div>
 
@@ -283,7 +283,7 @@ export default function ImportPage() {
 
         {/* Footer hint */}
         <p className="mt-6 text-center text-xs text-zinc-700">
-          Your PDF is processed in memory and is never stored on our servers.
+          Your resume is processed in memory and is never stored on our servers.
         </p>
       </div>
 

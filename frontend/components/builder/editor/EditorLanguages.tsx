@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Resume, Language } from "@/types/resume";
 import { Plus, Trash, ChevronDown, ChevronUp } from "lucide-react";
+import MoveButtons, { moveItem } from "@/components/ui/MoveButtons";
 import ClearableInput from "@/components/ui/ClearableInput";
 
 type Props = {
@@ -151,6 +152,7 @@ export default function EditorLanguages({ resume, setResume }: Props) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <MoveButtons index={index} count={languageList.length} onMove={(dir) => updateLanguages(moveItem(languageList, index, dir))} />
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

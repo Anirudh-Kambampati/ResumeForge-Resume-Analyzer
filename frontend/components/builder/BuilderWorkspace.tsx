@@ -5,6 +5,7 @@ import BuilderSidebar from "./BuilderSidebar";
 import BuilderTopbar from "./BuilderTopbar";
 import BuilderEditor from "./BuilderEditor";
 import BuilderPreview from "./BuilderPreview";
+import AnalysisPanel from "./AnalysisPanel";
 
 import { useResumeStore } from "@/store/resumeStore";
 import { getLayoutSections } from "@/config/layouts";
@@ -38,6 +39,7 @@ export default function BuilderWorkspace() {
   } = useResumeStore();
 
   const [saveStatus, setSaveStatus] = useState<"Saved" | "Saving...">("Saved");
+  const [analysisOpen, setAnalysisOpen] = useState(false);
 
   // Track whether the initial localStorage load has completed.
   // Until it completes, the store may hold stale mock data, so we
@@ -137,6 +139,8 @@ export default function BuilderWorkspace() {
             }}
             saveStatus={saveStatus}
             fullName={resume.profile?.fullName}
+            analysisOpen={analysisOpen}
+            onToggleAnalysis={() => setAnalysisOpen((open) => !open)}
           />
         </div>
 
@@ -152,12 +156,22 @@ export default function BuilderWorkspace() {
             />
           </div>
 
-          {/* Preview Panel - full width on print */}
-          <div className="overflow-auto bg-[#111113] print:bg-white print:overflow-visible print:h-auto">
+          {/* Preview Panel - full width on print. While analysis is open it
+              takes over this area on screen, but the preview still prints. */}
+          <div
+            className={`overflow-auto bg-[#111113] print:block print:bg-white print:overflow-visible print:h-auto ${
+              analysisOpen ? "hidden" : ""
+            }`}
+          >
             <BuilderPreview
               resume={resume}
               selectedSection={selectedSection}
             />
+          </div>
+
+          {/* Analysis panel — covers the preview area; kept mounted while closed so results survive */}
+          <div className={`overflow-hidden print:hidden ${analysisOpen ? "" : "hidden"}`}>
+            <AnalysisPanel onClose={() => setAnalysisOpen(false)} />
           </div>
 
         </div>

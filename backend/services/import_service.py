@@ -20,6 +20,7 @@ from typing import Any, Dict, Optional
 from fastapi import HTTPException
 
 from services.extractor import extract_text_from_pdf, ExtractionResult
+from services.docx_extractor import extract_text_from_docx, DocxExtractionResult
 from services.llm_client import LLMClient
 from services.prompt_builder import build_parse_prompts, build_repair_prompt
 from services.validator import (
@@ -56,7 +57,7 @@ class ImportResult:
 
 
 async def run_import_pipeline(
-    pdf_bytes: bytes,
+    file_bytes: bytes,
     filename: str = "resume.pdf",
     llm_client: Optional[LLMClient] = None,
     max_retries: int = 1,
@@ -64,7 +65,7 @@ async def run_import_pipeline(
     """Execute the full resume import pipeline from PDF bytes to structured data.
 
     Args:
-        pdf_bytes: Raw PDF file content.
+        file_bytes: Raw PDF or DOCX file content (routed on filename extension).
         filename: Original filename (for logging context).
         llm_client: Configured LLMClient instance. If None, pipeline fails fast.
         max_retries: Number of times to retry LLM generation on validation failure.
@@ -85,7 +86,7 @@ async def run_import_pipeline(
     logger.info(
         "[PIPELINE] Starting resume import | file=%s | size_bytes=%d",
         filename,
-        len(pdf_bytes),
+        len(file_bytes),
     )
 
     stage_timings: Dict[str, float] = {}
@@ -97,7 +98,11 @@ async def run_import_pipeline(
     # ================================================================
     stage_start = time.perf_counter()
     try:
-        extraction: ExtractionResult = extract_text_from_pdf(pdf_bytes, filename)
+        extraction: ExtractionResult | DocxExtractionResult
+        if filename.lower().endswith(".docx"):
+            extraction = extract_text_from_docx(file_bytes, filename)
+        else:
+            extraction = extract_text_from_pdf(file_bytes, filename)
     except ValueError as exc:
         logger.error("[PIPELINE] STAGE 1 (EXTRACT) FAILED | error=%s", str(exc))
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -107,9 +112,9 @@ async def run_import_pipeline(
     if extraction.is_empty():
         raise HTTPException(
             status_code=400,
-            detail="Could not extract text from the PDF. "
-            "The file may be scanned or image-based. "
-            "Please upload a text-based PDF.",
+            detail="Could not extract text from the document. "
+            "The file may be scanned, image-based, or empty. "
+            "Please upload a text-based PDF or DOCX.",
         )
 
     # ================================================================

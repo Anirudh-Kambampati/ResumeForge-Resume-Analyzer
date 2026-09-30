@@ -6,18 +6,21 @@ import {
   CloudCheck,
   CloudLightning,
   Loader2,
+  Sparkles,
   Upload,
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { pdf } from "@react-pdf/renderer";
 import { ResumePDFDocument } from "./preview/ResumePDFDocument";
 import { useResumeStore } from "@/store/resumeStore";
-import { useResumeImport } from "@/lib/useResumeImport";
+import { useResumeImport, RESUME_ACCEPT_ATTRIBUTE } from "@/lib/useResumeImport";
 
 type Props = {
   resetResume: () => void;
   saveStatus: "Saved" | "Saving...";
   fullName?: string;
+  analysisOpen?: boolean;
+  onToggleAnalysis?: () => void;
 };
 
 // ============================================================
@@ -53,6 +56,8 @@ export default function BuilderTopbar({
   resetResume,
   saveStatus,
   fullName,
+  analysisOpen = false,
+  onToggleAnalysis,
 }: Props) {
   const resume = useResumeStore((state) => state.resume);
 
@@ -207,7 +212,7 @@ export default function BuilderTopbar({
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf"
+          accept={RESUME_ACCEPT_ATTRIBUTE}
           className="hidden"
           onChange={handleFileInputChange}
         />
@@ -265,6 +270,30 @@ export default function BuilderTopbar({
           <RotateCcw size={16} />
           Reset
         </button>
+
+        {onToggleAnalysis && (
+          <button
+            onClick={onToggleAnalysis}
+            aria-pressed={analysisOpen}
+            className={`
+              flex
+              items-center
+              gap-2
+              rounded-xl
+              border
+              px-4
+              py-2
+              text-sm
+              transition
+              ${analysisOpen
+                ? "border-blue-500/40 bg-blue-500/10 text-blue-300"
+                : "border-white/10 bg-white/[0.03] text-zinc-300 hover:bg-white/[0.06] hover:text-white"}
+            `}
+          >
+            <Sparkles size={16} />
+            Analyze
+          </button>
+        )}
 
         <button
           onClick={handleDownload}
