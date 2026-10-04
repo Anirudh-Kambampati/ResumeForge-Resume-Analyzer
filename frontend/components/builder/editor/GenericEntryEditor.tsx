@@ -318,7 +318,7 @@ export default function GenericEntryEditor({ resume, setResume, config }: Props)
                     });
                     if (currentRow.length > 0) rows.push(currentRow);
                     return rows.map((row, ri) => (
-                      <div key={ri} className={row.length === 1 && row[0].spanFull ? "space-y-1" : "grid grid-cols-2 gap-4"}>
+                      <div key={ri} className={row.length === 1 && row[0].spanFull ? "space-y-1" : "grid grid-cols-1 sm:grid-cols-2 gap-4"}>
                         {row.map((field) => (
                           <div key={field.key} className={field.spanFull ? "space-y-1 col-span-2" : "space-y-1"}>
                             <label className="text-xs font-semibold text-zinc-400">{field.label}</label>

@@ -40,6 +40,9 @@ export default function BuilderWorkspace() {
 
   const [saveStatus, setSaveStatus] = useState<"Saved" | "Saving...">("Saved");
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  // Below lg the sidebar becomes a drawer and editor/preview share one column
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<"edit" | "preview">("edit");
 
   // Track whether the initial localStorage load has completed.
   // Until it completes, the store may hold stale mock data, so we
@@ -104,7 +107,7 @@ export default function BuilderWorkspace() {
   // 3. Show nothing until initial data is ready
   if (!initialLoadDone) {
     return (
-      <main className="flex h-screen items-center justify-center bg-app">
+      <main className="flex h-dvh items-center justify-center bg-app">
         <div className="flex items-center gap-3 text-zinc-600">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-400" />
           <span className="text-sm">Loading resume…</span>
@@ -114,13 +117,29 @@ export default function BuilderWorkspace() {
   }
 
   return (
-    <main id="builder-workspace" className="flex h-screen overflow-hidden bg-app text-white print:overflow-visible print:h-auto">
+    <main id="builder-workspace" className="flex h-dvh overflow-hidden bg-app text-white print:overflow-visible print:h-auto">
 
-      {/* Sidebar - hidden when printing */}
-      <div className="print:hidden flex shrink-0">
+      {/* Mobile drawer backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden print:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - static on lg+, slide-in drawer below; hidden when printing */}
+      <div
+        className={`print:hidden fixed inset-y-0 left-0 z-40 flex shrink-0 transition-transform duration-300 lg:static lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
         <BuilderSidebar
           selectedSection={selectedSection}
-          setSelectedSection={setSelectedSection}
+          setSelectedSection={(section) => {
+            setSelectedSection(section);
+            setSidebarOpen(false);
+            setMobileView("edit");
+          }}
         />
       </div>
 
@@ -141,14 +160,40 @@ export default function BuilderWorkspace() {
             fullName={resume.profile?.fullName}
             analysisOpen={analysisOpen}
             onToggleAnalysis={() => setAnalysisOpen((open) => !open)}
+            onOpenSidebar={() => setSidebarOpen(true)}
           />
         </div>
 
+        {/* Mobile Edit / Preview switch */}
+        {!analysisOpen && (
+          <div className="flex gap-1 border-b border-white/10 bg-app p-2 lg:hidden print:hidden">
+            {(["edit", "preview"] as const).map((view) => (
+              <button
+                key={view}
+                type="button"
+                onClick={() => setMobileView(view)}
+                aria-pressed={mobileView === view}
+                className={`flex-1 rounded-lg py-1.5 text-sm font-medium capitalize transition ${
+                  mobileView === view
+                    ? "bg-white/[0.08] text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {view}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Workspace Body */}
-        <div className="grid flex-1 grid-cols-[480px_1fr] overflow-hidden print:block print:overflow-visible print:h-auto">
+        <div className="grid flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[480px_1fr] print:block print:overflow-visible print:h-auto">
 
           {/* Editor Panel - hidden when printing */}
-          <div className="overflow-y-auto border-r border-white/10 bg-panel print:hidden">
+          <div
+            className={`overflow-y-auto border-r border-white/10 bg-panel print:hidden ${
+              analysisOpen || mobileView === "preview" ? "hidden lg:block" : ""
+            }`}
+          >
             <BuilderEditor
               resume={resume}
               setResume={setResume}
@@ -160,7 +205,7 @@ export default function BuilderWorkspace() {
               takes over this area on screen, but the preview still prints. */}
           <div
             className={`overflow-auto bg-canvas print:block print:bg-paper print:overflow-visible print:h-auto ${
-              analysisOpen ? "hidden" : ""
+              analysisOpen ? "hidden" : mobileView === "edit" ? "hidden lg:block" : ""
             }`}
           >
             <BuilderPreview

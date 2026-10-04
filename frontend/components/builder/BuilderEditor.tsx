@@ -38,7 +38,7 @@ export default function BuilderEditor({
   }, [selectedSection]);
 
   return (
-    <div ref={containerRef} className="p-6">
+    <div ref={containerRef} className="p-4 sm:p-6">
       {(() => {
         switch (selectedSection) {
           case "Profile":

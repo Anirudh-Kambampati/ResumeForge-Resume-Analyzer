@@ -165,7 +165,7 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                 {/* Accordion Content */}
                 {isExpanded && (
                   <div className="border-t border-white/10 p-5 space-y-4 bg-black/20">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-zinc-400">Certification Title</label>
                         <ClearableInput
@@ -186,7 +186,7 @@ export default function EditorCertifications({ resume, setResume }: Props) {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-zinc-400">Date Issued</label>
                         <ClearableInput

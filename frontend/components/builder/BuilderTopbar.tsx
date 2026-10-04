@@ -6,6 +6,7 @@ import {
   CloudCheck,
   CloudLightning,
   Loader2,
+  Menu,
   Sparkles,
   Upload,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 type Props = {
   resetResume: () => void;
   saveStatus: "Saved" | "Saving...";
+  onOpenSidebar?: () => void;
   fullName?: string;
   analysisOpen?: boolean;
   onToggleAnalysis?: () => void;
@@ -56,6 +58,7 @@ function Toast({
 export default function BuilderTopbar({
   resetResume,
   saveStatus,
+  onOpenSidebar,
   fullName,
   analysisOpen = false,
   onToggleAnalysis,
@@ -177,14 +180,24 @@ export default function BuilderTopbar({
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-app px-8">
+    <header className="flex h-16 items-center justify-between gap-2 border-b border-white/10 bg-app px-3 sm:px-4 lg:px-8">
       {/* Left */}
-      <div className="flex items-center gap-6">
-        <div>
+      <div className="flex min-w-0 items-center gap-2 sm:gap-6">
+        {onOpenSidebar && (
+          <button
+            type="button"
+            onClick={onOpenSidebar}
+            aria-label="Open sections menu"
+            className="rounded-lg p-2 text-zinc-400 transition hover:bg-white/[0.06] hover:text-white lg:hidden"
+          >
+            <Menu size={18} />
+          </button>
+        )}
+        <div className="hidden sm:block">
           <h2 className="text-lg font-semibold tracking-tight">
             Resume Builder
           </h2>
-          <p className="text-sm text-zinc-500">
+          <p className="hidden text-sm text-zinc-500 xl:block">
             Build an ATS-friendly resume
           </p>
         </div>
@@ -193,7 +206,7 @@ export default function BuilderTopbar({
           {saveStatus === "Saved" ? (
             <>
               <CloudCheck className="text-green-500" size={14} />
-              <span className="text-zinc-400 font-medium">Saved</span>
+              <span className="hidden text-zinc-400 font-medium sm:inline">Saved</span>
             </>
           ) : (
             <>
@@ -201,14 +214,14 @@ export default function BuilderTopbar({
                 className="text-yellow-500 animate-pulse"
                 size={14}
               />
-              <span className="text-zinc-400 font-medium">Saving...</span>
+              <span className="hidden text-zinc-400 font-medium sm:inline">Saving...</span>
             </>
           )}
         </div>
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3">
         <ThemeToggle />
 
         {/* Hidden file input — wired through the shared hook */}
@@ -223,6 +236,7 @@ export default function BuilderTopbar({
         {/* Import button */}
         <button
           onClick={handleImportClick}
+          aria-label="Import resume"
           disabled={importStatus === "loading"}
           className="
             flex
@@ -232,7 +246,8 @@ export default function BuilderTopbar({
             border
             border-white/10
             bg-white/[0.03]
-            px-4
+            px-2.5
+            md:px-4
             py-2
             text-sm
             text-zinc-300
@@ -248,11 +263,12 @@ export default function BuilderTopbar({
           ) : (
             <Upload size={16} />
           )}
-          {importStatus === "loading" ? "Importing..." : "Import"}
+          <span className="hidden md:inline">{importStatus === "loading" ? "Importing..." : "Import"}</span>
         </button>
 
         <button
           onClick={resetResume}
+          aria-label="Reset resume"
           className="
             flex
             items-center
@@ -261,7 +277,8 @@ export default function BuilderTopbar({
             border
             border-white/10
             bg-white/[0.03]
-            px-4
+            px-2.5
+            md:px-4
             py-2
             text-sm
             text-zinc-300
@@ -271,12 +288,13 @@ export default function BuilderTopbar({
           "
         >
           <RotateCcw size={16} />
-          Reset
+          <span className="hidden md:inline">Reset</span>
         </button>
 
         {onToggleAnalysis && (
           <button
             onClick={onToggleAnalysis}
+            aria-label="Analyze resume"
             aria-pressed={analysisOpen}
             className={`
               flex
@@ -284,7 +302,8 @@ export default function BuilderTopbar({
               gap-2
               rounded-xl
               border
-              px-4
+              px-2.5
+              md:px-4
               py-2
               text-sm
               transition
@@ -294,12 +313,13 @@ export default function BuilderTopbar({
             `}
           >
             <Sparkles size={16} />
-            Analyze
+            <span className="hidden md:inline">Analyze</span>
           </button>
         )}
 
         <button
           onClick={handleDownload}
+          aria-label="Download PDF"
           disabled={isDownloading}
           className="
             flex
@@ -307,7 +327,8 @@ export default function BuilderTopbar({
             gap-2
             rounded-xl
             bg-blue-600
-            px-4
+            px-2.5
+            md:px-4
             py-2
             text-sm
             font-semibold
@@ -326,7 +347,7 @@ export default function BuilderTopbar({
             <Download size={16} />
           )}
 
-          {isDownloading ? "Generating..." : "Download PDF"}
+          <span className="hidden md:inline">{isDownloading ? "Generating..." : "Download PDF"}</span>
         </button>
       </div>
 
