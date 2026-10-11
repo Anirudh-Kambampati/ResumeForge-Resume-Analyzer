@@ -1,0 +1,11 @@
+# node_modules from Windows has Windows binaries; the image installs its own.
+node_modules/
+.next/
+out/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+npm-debug.log*
+Dockerfile
+.dockerignore

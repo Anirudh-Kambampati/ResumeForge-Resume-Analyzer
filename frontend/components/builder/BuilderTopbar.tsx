@@ -8,7 +8,7 @@ import {
   Loader2,
   Menu,
   Sparkles,
-  Upload,
+  Import,
 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { pdf } from "@react-pdf/renderer";
@@ -271,7 +271,7 @@ export default function BuilderTopbar({
           {importStatus === "loading" ? (
             <Loader2 className="animate-spin" size={16} />
           ) : (
-            <Upload size={16} />
+            <Import size={16} />
           )}
           <span className="hidden md:inline">{importStatus === "loading" ? "Importing..." : "Import"}</span>
         </button>

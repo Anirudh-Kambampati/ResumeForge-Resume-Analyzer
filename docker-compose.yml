@@ -1,0 +1,27 @@
+# Runs the whole app with one command: docker compose up --build
+# Frontend: http://localhost:3000   Backend: http://localhost:8000
+# Stop with Ctrl+C, or `docker compose down` if started with -d.
+
+services:
+  backend:
+    build: ./backend
+    # Secrets come from your existing backend/.env at runtime; they are never
+    # copied into the image (see backend/.dockerignore).
+    env_file: ./backend/.env
+    ports:
+      - "8000:8000" # <port on your machine>:<port in the container>
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # The browser calls the API, and the browser is on your machine, so
+        # this is localhost — not http://backend:8000, which only resolves
+        # between containers.
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped

@@ -1,0 +1,12 @@
+# Kept out of the build context, so `COPY . .` never bakes them into the image.
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tests/
+test_*.py
+*.pdf
