@@ -330,6 +330,4 @@ This project is licensed under the MIT License.
 
 **Built with ❤️ by Anirudh Kambampati**
 
-<img src="https://capsule-render.vercel.app/api?type=waving&height=120&color=0:dc2626,100:f97316&section=footer" alt="" />
-
 </div>
