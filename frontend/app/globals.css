@@ -579,3 +579,130 @@ body:has(#analyzer-workspace) {
     padding: 0 !important;
   }
 }
+/* ------------------------------------------------ */
+/* Animated cursor (components/ui/AnimatedCursor)   */
+/* Ink dot + trailing ring. The outer elements are  */
+/* moved by JS; the inner spans animate size/state. */
+/* ------------------------------------------------ */
+
+@media screen {
+  html.rf-cursor-on,
+  html.rf-cursor-on * {
+    cursor: none !important;
+  }
+  html.rf-cursor-on
+    :is(
+      input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="file"]),
+      textarea,
+      [contenteditable="true"]
+    ) {
+    cursor: text !important;
+  }
+}
+
+.rf-cursor {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  /* Highlighter: the hover fill tints the label under it instead of covering it.
+     Set on the layer itself — it's a stacking context, so children can't blend with the page. */
+  mix-blend-mode: multiply;
+}
+:root[data-theme="dark"] .rf-cursor {
+  mix-blend-mode: screen;
+}
+
+.rf-cursor-dot,
+.rf-cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  will-change: transform;
+}
+
+.rf-cursor-dot > span,
+.rf-cursor-ring > span {
+  position: absolute;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%);
+  transition:
+    width 0.2s ease,
+    height 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease,
+    scale 0.12s ease;
+}
+
+.rf-cursor-dot > span {
+  width: 7px;
+  height: 7px;
+  background: var(--foreground);
+}
+
+.rf-cursor-ring > span {
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--foreground);
+  background: transparent;
+  opacity: 0.55;
+}
+
+/* Over something clickable: a marker sticker under the pointer */
+.rf-cursor[data-state="hover"] .rf-cursor-ring > span {
+  width: 46px;
+  height: 46px;
+  background: var(--marker);
+  border-color: var(--line);
+  opacity: 1;
+}
+:root[data-theme="dark"] .rf-cursor[data-state="hover"] .rf-cursor-ring > span {
+  background: color-mix(in srgb, var(--marker) 55%, transparent);
+}
+.rf-cursor[data-state="hover"] .rf-cursor-dot > span {
+  width: 5px;
+  height: 5px;
+}
+
+.rf-cursor[data-pressed] .rf-cursor-ring > span {
+  scale: 0.82;
+}
+.rf-cursor[data-pressed] .rf-cursor-dot > span {
+  scale: 1.4;
+}
+
+/* Text fields use the native I-beam */
+.rf-cursor[data-state="text"] .rf-cursor-dot > span,
+.rf-cursor[data-state="text"] .rf-cursor-ring > span,
+.rf-cursor[data-hidden] .rf-cursor-dot > span,
+.rf-cursor[data-hidden] .rf-cursor-ring > span {
+  opacity: 0;
+}
+
+.rf-cursor-ripple {
+  position: fixed;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  border: 2px solid var(--pencil);
+  transform: translate(-50%, -50%);
+  animation: rf-cursor-ripple 0.5s ease-out forwards;
+}
+
+@keyframes rf-cursor-ripple {
+  to {
+    width: 64px;
+    height: 64px;
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+
+@media print {
+  .rf-cursor {
+    display: none !important;
+  }
+}

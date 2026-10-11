@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Caveat, Instrument_Serif } from "next/font/google"
 import "./globals.css";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import AiKeyDialog from "@/components/ai/AiKeyDialog";
+import AnimatedCursor from "@/components/ui/AnimatedCursor";
 
 // Interface and body text
 const bricolage = Bricolage_Grotesque({
@@ -51,6 +52,7 @@ export default function RootLayout({
       <body>
         {children}
         <AiKeyDialog />
+        <AnimatedCursor />
       </body>
     </html>
   );

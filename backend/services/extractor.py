@@ -301,12 +301,19 @@ def extract_text_from_pdf(
     # it (by simply taking the stripped text per line). This avoids
     # a second extract_text() call.
     # ---------------------------------------------------------------
+    page_errors: List[str] = []
     for i, page in enumerate(reader.pages):
         try:
             layout_text = page.extract_text(extraction_mode="layout") or ""
         except Exception as exc:
-            logger.warning("[EXTRACT] Page %d extraction failed | file=%s | error=%s", i, filename, str(exc))
-            layout_text = ""
+            logger.warning("[EXTRACT] Page %d layout extraction failed | file=%s | error=%s", i, filename, str(exc))
+            # Plain mode decodes text differently and often survives a layout failure
+            try:
+                layout_text = page.extract_text() or ""
+            except Exception as plain_exc:
+                logger.warning("[EXTRACT] Page %d extraction failed | file=%s | error=%s", i, filename, str(plain_exc))
+                page_errors.append(f"{type(plain_exc).__name__}: {plain_exc}")
+                layout_text = ""
 
         # Derive clean text from layout text: strip each line, join
         clean_lines = [ln.strip() for ln in layout_text.split("\n") if ln.strip()]
@@ -341,6 +348,20 @@ def extract_text_from_pdf(
     quality_flags["low_word_count"] = word_count < 20 and char_count > 100
 
     elapsed = time.perf_counter() - stage_start
+
+    if not flat_text and page_errors and len(page_errors) == page_count:
+        # The text is there but the reader crashed on it (e.g. an unusual font
+        # mapping). Don't report that as a scanned/image-only PDF.
+        logger.error(
+            "[EXTRACT] Every page failed to decode | file=%s | pages=%d | first_error=%s",
+            filename,
+            page_count,
+            page_errors[0],
+        )
+        raise ValueError(
+            "This PDF's text couldn't be decoded (its fonts use an encoding the reader didn't accept). "
+            "Try exporting it again, saving it with “Print to PDF”, or uploading a DOCX version."
+        )
 
     if not flat_text:
         logger.warning(
