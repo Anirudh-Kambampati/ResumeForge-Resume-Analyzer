@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import LogoMark from "@/components/ui/LogoMark";
 import { RotateCcw, LayoutDashboard, FileText } from "lucide-react";
 import { useResumeStore, type BuilderSection } from "@/store/resumeStore";
 import TemplateSelector from "./TemplateSelector";
@@ -35,9 +36,12 @@ export default function BuilderSidebar({
       <div className="shrink-0 border-b border-white/[0.06] px-4 py-[18px]">
         <Link
           href="/"
-          className="font-serif text-2xl leading-none text-white transition-colors hover:text-pencil"
+          className="group flex items-center gap-2 font-serif text-2xl leading-none text-white transition-colors hover:text-pencil"
         >
-          Resume<em>Forge</em>
+          <LogoMark className="h-7 w-7" />
+          <span>
+            Resume<em>Forge</em>
+          </span>
         </Link>
       </div>
 

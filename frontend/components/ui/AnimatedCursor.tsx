@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+// Share of the remaining gap the ring closes each frame: higher stays closer to the dot
+const RING_FOLLOW = 0.45;
 // Ring grows and fills with marker over anything clickable
 const INTERACTIVE = 'a, button, [role="button"], [role="menuitem"], [role="tab"], label, select, summary, .rf-btn, [data-cursor="hover"]';
 // Text entry keeps the native I-beam; the custom cursor steps aside
@@ -43,8 +45,8 @@ export default function AnimatedCursor() {
     let frame = 0;
 
     const tick = () => {
-      pos.x += (target.x - pos.x) * 0.22;
-      pos.y += (target.y - pos.y) * 0.22;
+      pos.x += (target.x - pos.x) * RING_FOLLOW;
+      pos.y += (target.y - pos.y) * RING_FOLLOW;
       ring.style.transform = `translate3d(${pos.x}px, ${pos.y}px, 0)`;
       // Stop once settled; the next move restarts the loop
       frame = Math.abs(target.x - pos.x) + Math.abs(target.y - pos.y) > 0.1 ? requestAnimationFrame(tick) : 0;

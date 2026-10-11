@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, PanelRightOpen, Sparkles, Undo2 } from "lucide-react";
 import type { ImprovedBullet } from "@/lib/analysis";
 import { useBulletApplier } from "@/lib/useBulletApplier";
@@ -10,9 +10,26 @@ import BuilderSidePanel from "./BuilderSidePanel";
  * Suggested rewrites with Apply / Undo. Applying opens the builder sidebar,
  * which previews the analyzed resume with the change in place.
  */
-export default function ImprovedBullets({ file, bullets }: { file: File | null; bullets: ImprovedBullet[] }) {
+export default function ImprovedBullets({
+  file,
+  bullets,
+  onAppliedChange,
+}: {
+  file: File | null;
+  bullets: ImprovedBullet[];
+  /** Called with the indexes of applied rewrites whenever they change */
+  onAppliedChange?: (applied: Set<number>) => void;
+}) {
   const applier = useBulletApplier(file, bullets);
   const [panelOpen, setPanelOpen] = useState(false);
+
+  useEffect(() => {
+    const applied = new Set<number>();
+    for (const [idx, state] of Object.entries(applier.states)) {
+      if (state.kind === "applied") applied.add(Number(idx));
+    }
+    onAppliedChange?.(applied);
+  }, [applier.states, onAppliedChange]);
 
   const applyAndShow = (idx: number) => {
     applier.apply(idx);

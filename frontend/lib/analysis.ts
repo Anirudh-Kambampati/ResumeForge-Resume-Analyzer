@@ -146,3 +146,32 @@ export function locationLabel(resume: Resume, loc: TextLocation): string {
 export function resumeFingerprint(resume: Resume): string {
   return JSON.stringify(resume);
 }
+
+/** Display names for the deterministic ATS checks (rule_breakdown keys). */
+export const RULE_LABELS: Record<string, string> = {
+  machine_readability: "Machine Readability",
+  standard_ats_structure: "Standard ATS Structure",
+  contact_parseability: "Contact Parseability",
+  section_recognition: "Section Recognition",
+  resume_conciseness: "Resume Conciseness",
+  layout_safety_signals: "Layout Safety Signals",
+  skills_extractability: "Skills Extractability",
+  content_structure: "Content Structure",
+  keyword_hygiene: "Keyword Hygiene",
+};
+
+/** Display names for job match categories (job_match_breakdown keys). */
+export const JOB_MATCH_LABELS: Record<string, string> = {
+  job_title_alignment: "Title alignment",
+  required_skills_match: "Required skills",
+  preferred_skills_match: "Preferred skills",
+  jd_terminology_alignment: "Domain terminology",
+  responsibility_alignment: "Responsibilities",
+  project_experience_relevance: "Hands-on evidence",
+  keyword_coverage_hygiene: "Keyword coverage",
+};
+
+/** "keyword_hygiene" → "Keyword Hygiene" for keys without a label. */
+export function breakdownLabel(key: string, labels: Record<string, string>): string {
+  return labels[key] || key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}

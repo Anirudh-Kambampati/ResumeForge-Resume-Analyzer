@@ -706,3 +706,28 @@ body:has(#analyzer-workspace) {
     display: none !important;
   }
 }
+
+/* ------------------------------------------------ */
+/* Logo mark (components/ui/LogoMark): on hover of   */
+/* the parent .group the sheet straightens and the   */
+/* spark turns.                                      */
+/* ------------------------------------------------ */
+
+.rf-logo-sheet,
+.rf-logo-spark {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.group:hover .rf-logo-sheet {
+  transform: rotate(7deg);
+}
+.group:hover .rf-logo-spark {
+  transform: rotate(45deg) scale(1.25);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rf-logo-sheet,
+  .rf-logo-spark {
+    transition: none;
+  }
+}

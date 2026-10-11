@@ -19,6 +19,8 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 import AiKeyButton from "@/components/ai/AiKeyButton";
 import UseOwnKeyLink from "@/components/ai/UseOwnKeyLink";
 import ImprovedBullets from "@/components/analyzer/ImprovedBullets";
+import ExportReportButton from "@/components/analyzer/ExportReportButton";
+import { RULE_LABELS } from "@/lib/analysis";
 import { isSupportedResumeFile, RESUME_ACCEPT_ATTRIBUTE } from "@/lib/useResumeImport";
 
 interface Suggestion {
@@ -72,6 +74,8 @@ export default function AnalyzerPage() {
   const [result, setResult] = useState<AnalysisData | null>(null);
   // Bumped per analysis so applied rewrites from a previous run are discarded
   const [runId, setRunId] = useState(0);
+  // Rewrites applied in the builder preview, marked in the PDF report
+  const [appliedRewrites, setAppliedRewrites] = useState<Set<number>>(() => new Set());
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -141,6 +145,7 @@ export default function AnalyzerPage() {
       const data = await response.json();
       setResult(data);
       setRunId((n) => n + 1);
+      setAppliedRewrites(new Set());
     } catch (e: unknown) {
       console.error(e);
       let errMsg = "An unexpected error occurred during analysis.";
@@ -416,30 +421,15 @@ export default function AnalyzerPage() {
 
               {/* Summary details */}
               <div className="space-y-4">
-                <div className="flex justify-between items-start">
+                <div className="flex flex-wrap justify-between items-start gap-3">
                   <h3 className="font-serif text-4xl font-normal text-white">Resume Analysis</h3>
-                  <button
-                    onClick={handleReset}
-                    className="
-                      flex
-                      items-center
-                      gap-1
-                      rounded-lg
-                      border
-                      border-white/10
-                      bg-white/[0.03]
-                      px-3
-                      py-1.5
-                      text-xs
-                      text-zinc-400
-                      hover:text-white
-                      hover:bg-white/[0.06]
-                      transition
-                    "
-                  >
-                    <RefreshCw size={12} />
-                    Analyze Another
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ExportReportButton data={result} fileName={file?.name ?? "resume.pdf"} appliedRewrites={appliedRewrites} />
+                    <button onClick={handleReset} className="rf-btn gap-1.5 px-3 text-sm">
+                      <RefreshCw size={13} />
+                      Analyze Another
+                    </button>
+                  </div>
                 </div>
                 <p className="text-sm text-zinc-400 leading-relaxed font-sans">{result.summary}</p>
                 <div className="grid gap-2 text-xs text-zinc-400 md:grid-cols-3">
@@ -592,7 +582,7 @@ export default function AnalyzerPage() {
 
             {/* AI rewrites: apply them and preview in the builder sidebar */}
             {result.improved_bullets && result.improved_bullets.length > 0 && (
-              <ImprovedBullets key={runId} file={file} bullets={result.improved_bullets} />
+              <ImprovedBullets key={runId} file={file} bullets={result.improved_bullets} onAppliedChange={setAppliedRewrites} />
             )}
 
             {/* Interview focus suggestions */}
@@ -659,15 +649,4 @@ interface ImprovedBullet {
   improved: string;
 }
 
-const RULE_LABELS: Record<string, string> = {
-  machine_readability: "Machine Readability",
-  standard_ats_structure: "Standard ATS Structure",
-  contact_parseability: "Contact Parseability",
-  section_recognition: "Section Recognition",
-  resume_conciseness: "Resume Conciseness",
-  layout_safety_signals: "Layout Safety Signals",
-  skills_extractability: "Skills Extractability",
-  content_structure: "Content Structure",
-  keyword_hygiene: "Keyword Hygiene",
-};
 

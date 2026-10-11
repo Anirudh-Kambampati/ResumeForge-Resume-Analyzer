@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import LogoMark from "@/components/ui/LogoMark";
 
 export interface NavLink {
   href: string;
@@ -30,8 +31,9 @@ export default function Navbar({ links = HOME_LINKS, logoHref = "#hero", badge, 
       <div className="mx-auto flex h-[68px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link
           href={logoHref}
-          className="flex items-baseline gap-2 font-serif text-[28px] leading-none text-white transition-colors hover:text-pencil"
+          className="group flex items-center gap-2.5 font-serif text-[28px] leading-none text-white transition-colors hover:text-pencil"
         >
+          <LogoMark className="h-9 w-9" />
           <span>
             Resume<em>Forge</em>
           </span>
