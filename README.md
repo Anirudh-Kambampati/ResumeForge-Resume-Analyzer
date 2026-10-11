@@ -14,7 +14,6 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
 ![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-4-38BDF8?style=for-the-badge&logo=tailwindcss)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](#-docker)
-[![CircleCI](https://img.shields.io/circleci/build/github/Anirudh-Kambampati/ResumeForge-Resume-Analyzer/main?style=for-the-badge&logo=circleci)](https://app.circleci.com/pipelines/github/Anirudh-Kambampati/ResumeForge-Resume-Analyzer)
 
 <br />
 
@@ -23,7 +22,7 @@
 [🛠️ Tech Stack](#️-tech-stack) •
 [🏁 Getting Started](#-getting-started) •
 [🐳 Docker](#-docker) •
-[🧪 Testing & CI](#-testing--ci) •
+[🧪 Testing](#-testing) •
 [📈 Roadmap](#-roadmap)
 
 </div>
@@ -177,7 +176,6 @@ flowchart LR
     <td valign="top">
 
 - Docker & Docker Compose
-- CircleCI
 - pytest
 
 </td>
@@ -292,7 +290,7 @@ The app runs at http://localhost:3000 and the API at http://localhost:8000.
 
 <br />
 
-## 🧪 Testing & CI
+## 🧪 Testing
 
 Run the backend tests:
 
@@ -303,24 +301,6 @@ python -m pytest --ignore=test_analyze.py
 ```
 
 `test_analyze.py` is a manual script that needs the backend running on port 8000, so it's left out.
-
-Every push runs the [CircleCI](https://circleci.com/) pipeline in `.circleci/config.yml`:
-
-```mermaid
-flowchart LR
-    P(["📤 git push"]) --> T["🐍 backend-tests"]
-    P --> C["⚛️ frontend-checks"]
-    T --> D["🐳 docker-build"]
-    C --> D
-```
-
-| Job | Checks |
-|---|---|
-| `backend-tests` | pytest on Python 3.12 |
-| `frontend-checks` | `npm ci`, lint (reported, not yet enforced), `next build` |
-| `docker-build` | Builds both Docker images, after the two jobs above pass |
-
-The pipeline doesn't deploy anything.
 
 <br />
 
@@ -333,8 +313,8 @@ The pipeline doesn't deploy anything.
 | ✅ | AI Feedback | ✅ | Business Screening |
 | ✅ | ATS Scoring | ✅ | Bring Your Own Key |
 | ✅ | Multiple Templates | ✅ | Docker Support |
-| ✅ | Responsive Design | ✅ | CircleCI Pipeline |
-| ✅ | PDF Export | ⏳ | Automated Deployment |
+| ✅ | Responsive Design | ⏳ | Automated Deployment |
+| ✅ | PDF Export | | |
 
 <br />
 
