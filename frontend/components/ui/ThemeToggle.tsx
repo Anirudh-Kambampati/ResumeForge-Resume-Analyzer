@@ -4,17 +4,17 @@ import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 import { getTheme, setTheme, subscribeTheme, type Theme } from "@/lib/theme";
 
-/** Sun/moon button that switches between light and dark mode. */
+/** Sun/moon button that switches between paper (light) and Night desk (dark). */
 export default function ThemeToggle({ className = "" }: { className?: string }) {
-  // Server render assumes dark; the real theme is read after hydration.
-  const theme = useSyncExternalStore<Theme>(subscribeTheme, getTheme, () => "dark");
+  // Server render assumes paper (light); the real theme is read after hydration.
+  const theme = useSyncExternalStore<Theme>(subscribeTheme, getTheme, () => "light");
   const next: Theme = theme === "dark" ? "light" : "dark";
 
   return (
     <button
       type="button"
       onClick={() => setTheme(next)}
-      className={`flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-zinc-400 transition hover:bg-white/[0.06] hover:text-white ${className}`}
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-line bg-panel text-white shadow-[2px_2px_0_var(--shadow-color)] transition hover:-translate-x-px hover:-translate-y-px hover:shadow-[3px_3px_0_var(--shadow-color)] ${className}`}
       aria-label={`Switch to ${next} mode`}
       title={`Switch to ${next} mode`}
     >

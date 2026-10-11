@@ -15,6 +15,11 @@ const faqs = [
       "No. Your resume is only processed for analysis. We don't permanently store your uploaded files.",
   },
   {
+    question: "Can my hiring team use ResumeForge?",
+    answer:
+      "Yes. ResumeForge for Businesses screens a batch of resumes against a job description and ranks candidates with the same job-match scoring. Run a queue per opening, in parallel, with nothing stored on our servers.",
+  },
+  {
     question: "Which file formats are supported?",
     answer:
       "PDF and DOCX are supported for import and analysis. Legacy .doc files should be saved as .docx first.",
@@ -45,16 +50,14 @@ export default function About() {
         {/* Left */}
 
         <div>
-          <div className="inline-flex rounded-full border border-blue-500/20 bg-blue-500/10 px-4 py-2 text-sm text-blue-300 backdrop-blur-xl">
-            Why ResumeForge
-          </div>
+          <span className="rf-sticker px-4 py-1.5 text-sm">Why ResumeForge</span>
 
-          <h2 className="mt-6 text-5xl font-bold tracking-tight md:text-6xl">
+          <h2 className="mt-7 font-serif text-5xl font-normal leading-[1.02] md:text-6xl">
             Built for students,
             <br />
             graduates, and
             <br />
-            job seekers.
+            <em className="rf-mark">job seekers.</em>
           </h2>
 
           <p className="mt-8 max-w-lg text-lg leading-8 text-zinc-400">
@@ -68,11 +71,11 @@ export default function About() {
             {highlights.map((item) => (
               <div
                 key={item}
-                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 backdrop-blur-xl"
+                className="rf-card flex items-center gap-3 rounded-2xl px-5 py-4 shadow-[3px_3px_0_var(--shadow-color)]"
               >
-                <div className="h-2 w-2 rounded-full bg-blue-400" />
+                <span className="h-2.5 w-2.5 shrink-0 rotate-45 bg-pencil" aria-hidden="true" />
 
-                <span className="text-zinc-200">{item}</span>
+                <span className="font-semibold text-zinc-200">{item}</span>
               </div>
             ))}
           </div>
@@ -81,15 +84,15 @@ export default function About() {
         {/* Right */}
 
         <div>
-          <h3 className="mb-8 text-3xl font-bold tracking-tight">
-            Frequently Asked Questions
+          <h3 className="mb-8 font-serif text-4xl font-normal">
+            Questions, <em>answered</em>
           </h3>
 
           <div className="space-y-4">
             {faqs.map((faq, index) => (
               <div
                 key={faq.question}
-                className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl transition-all duration-300 hover:border-blue-500/30 hover:bg-white/[0.05]"
+                className="rf-card overflow-hidden rounded-2xl shadow-[3px_3px_0_var(--shadow-color)]"
               >
                 <button
                   onClick={() =>
@@ -97,7 +100,7 @@ export default function About() {
                   }
                   className="flex w-full items-center justify-between px-6 py-5 text-left"
                 >
-                  <span className="pr-4 text-lg font-medium">
+                  <span className="pr-4 text-lg font-bold">
                     {faq.question}
                   </span>
 

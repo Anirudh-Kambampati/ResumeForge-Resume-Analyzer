@@ -32,7 +32,23 @@ function uid(prefix: string): string {
 // Response type from /api/ats/optimize
 // ============================================================
 
+/** How the import was produced (see backend/services/resume_import.py). */
+export interface ImportMeta {
+  parser: "deterministic";
+  /** applied: AI-reviewed · skipped: AI unavailable · rejected: AI output failed the evidence check */
+  ai_review: "applied" | "skipped" | "rejected";
+  message: string | null;
+  /** X-AI-Error style code, e.g. "server_exhausted" */
+  error_code: string | null;
+}
+
+export interface ImportResult {
+  resume: Resume;
+  meta: ImportMeta | null;
+}
+
 export interface AtsOptimizeResponse {
+  import_meta?: ImportMeta;
   profile?: {
     fullName?: string;
     title?: string;
@@ -405,10 +421,27 @@ function splitTitles(raw: string): string[] {
 // Upload a PDF and parse it through the ATS pipeline
 // ============================================================
 
+/**
+ * Upload a resume and import it into the builder (persisted, so the
+ * builder picks it up).
+ */
 export async function uploadAndParseResume(
   file: File,
   signal?: AbortSignal,
-): Promise<Resume> {
+): Promise<ImportResult> {
+  const result = await parseResumeFile(file, signal);
+  localStorage.setItem("resumeforge-resume", JSON.stringify(result.resume));
+  return result;
+}
+
+/**
+ * Parse a resume file into a builder Resume WITHOUT saving it, e.g. to
+ * preview changes before the user decides to replace their builder resume.
+ */
+export async function parseResumeFile(
+  file: File,
+  signal?: AbortSignal,
+): Promise<ImportResult> {
   const formData = new FormData();
   formData.append("resume", file);
 
@@ -429,10 +462,7 @@ export async function uploadAndParseResume(
     },
   };
 
-  // Persist to localStorage so the builder can pick it up
-  localStorage.setItem("resumeforge-resume", JSON.stringify(resume));
-
-  return resume;
+  return { resume, meta: data.import_meta ?? null };
 }
 
 

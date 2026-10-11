@@ -1,31 +1,63 @@
 @import "tailwindcss";
 
+/* ================================================ */
+/* ResumeForge theme: "Editor's desk × Sticker book" */
+/*                                                  */
+/* Paper and ink, a highlighter marker, a red       */
+/* pencil for markup, chunky ink outlines and hard  */
+/* offset shadows.                                  */
+/*                                                  */
+/*   paper (default) — warm paper ground, ink text  */
+/*   dark ("Night desk") — ink ground, paper text   */
+/*                                                  */
+/* The UI was written with dark-theme utilities     */
+/* (text-white, text-zinc-400, border-white/10,     */
+/* bg-blue-600 …). Tailwind v4 utilities read       */
+/* --color-* variables, so each theme re-points     */
+/* those instead of every class being rewritten:    */
+/*   white  → the text colour (ink / paper)         */
+/*   zinc   → warm greys, ordered for the theme     */
+/*   blue   → the accent: solid fills become the    */
+/*            primary button (ink / marker), pale   */
+/*            shades become red-pencil accent text  */
+/* New work can use the named tokens directly:      */
+/* bg-marker, text-pencil, border-line, font-serif, */
+/* font-hand, and the .rf-* pieces further down.    */
+/* Remaps are screen-only so printing is untouched. */
+/* ================================================ */
+
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  --background: #09090b;
-  --foreground: #ededed;
+  --background: #f6f1e7;
+  --foreground: #1f1b16;
 
-  --primary: rgb(59, 130, 246);
-  --primary-soft: rgba(59, 130, 246, 0.16);
+  /* Brand */
+  --marker: #ffd84d;
+  --pencil: #bf3119;
+  --line: #1f1b16;          /* chunky outlines */
+  --shadow-color: #1f1b16;  /* hard offset shadows */
+  --btn-bg: #1f1b16;        /* primary button */
+  --btn-fg: #f6f1e7;
+  --btn-shadow: var(--marker);
 
-  --surface: rgba(255, 255, 255, 0.03);
-  --surface-hover: rgba(255, 255, 255, 0.05);
-
-  --border: rgba(255, 255, 255, 0.1);
-  --muted: rgb(161, 161, 170);
+  --primary: var(--pencil);
+  --primary-soft: rgba(255, 216, 77, 0.35);
+  --surface: rgba(31, 27, 22, 0.03);
+  --surface-hover: rgba(31, 27, 22, 0.06);
+  --border: rgba(31, 27, 22, 0.14);
+  --muted: #5e554b;
 
   /* App surfaces (see bg-app / bg-panel / bg-card / bg-canvas) */
-  --app: #09090b;
-  --panel: #0c0c0e;
-  --card: #141416;
-  --canvas: #111113;
+  --app: #f6f1e7;
+  --panel: #fffdf8;   /* "sheet": cards, inputs, resume pages */
+  --card: #fbf6ec;
+  --canvas: #ede4d3;  /* builder desk behind the resume page */
 
-  /* Decorative layers */
-  --grid-line: rgba(255, 255, 255, 0.03);
-  --scrollbar: rgba(255, 255, 255, 0.15);
-  --scrollbar-hover: rgba(255, 255, 255, 0.3);
-  --selection-text: #ffffff;
+  --scrollbar: rgba(31, 27, 22, 0.22);
+  --scrollbar-hover: rgba(31, 27, 22, 0.38);
+  --selection-bg: var(--marker);
+  --selection-text: #1f1b16;
 }
 
 @theme inline {
@@ -37,85 +69,302 @@
   --color-card: var(--card);
   --color-canvas: var(--canvas);
 
+  --color-marker: var(--marker);
+  --color-pencil: var(--pencil);
+  --color-line: var(--line);
+
   /* Fixed colours that must NOT flip with the theme:
-     paper/ink for the resume page, on-accent for text on solid blue buttons. */
+     paper/ink for the resume page, on-accent for text on solid primary buttons. */
   --color-paper: #ffffff;
   --color-ink: #000000;
-  --color-on-accent: #ffffff;
+  --color-on-accent: var(--btn-fg);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-instrument), ui-serif, Georgia, serif;
+  --font-hand: var(--font-caveat), "Segoe Print", cursive;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media screen {
+  /* ---------------- Paper (default) ---------------- */
+  :root {
+    --color-white: #1f1b16;
+    --color-black: #fffdf8;
+
+    --color-zinc-50: #1f1b16;
+    --color-zinc-100: #2a241e;
+    --color-zinc-200: #3a332b;
+    --color-zinc-300: #4a4239;
+    --color-zinc-400: #5e554b;
+    --color-zinc-500: #6f6559;
+    --color-zinc-600: #766b5d;
+    --color-zinc-700: #cfc4b2;
+    --color-zinc-800: #e2d7c3;
+    --color-zinc-900: #ede4d3;
+    --color-zinc-950: #f6f1e7;
+
+    /* Accent: pale shades → red pencil text, solid fills → ink buttons */
+    --color-blue-50: #fff8d6;
+    --color-blue-100: #fff0ad;
+    --color-blue-200: #8f2412;
+    --color-blue-300: #a82b16;
+    --color-blue-400: #bf3119;
+    --color-blue-500: #2e2820;
+    --color-blue-600: #1f1b16;
+    --color-blue-700: #0f0d0b;
+
+    --color-red-300: #a82b16;
+    --color-red-400: #bf3119;
+    --color-red-500: #bf3119;
+    --color-red-600: #a82b16;
+    --color-green-300: #2f6b2f;
+    --color-green-400: #2f6b2f;
+    --color-green-500: #3b8a3b;
+    --color-amber-300: #8a5300;
+    --color-amber-400: #8a5300;
+    --color-amber-500: #b36b00;
+    --color-yellow-400: #8a5300;
+    --color-yellow-500: #b36b00;
+    --color-purple-300: #5b34b0;
+    --color-purple-400: #6a3fc8;
+    --color-purple-500: #6a3fc8;
+    --color-orange-400: #b5541a;
+  }
+
+  /* ---------------- Night desk (dark) ---------------- */
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --background: #1a1714;
+    --foreground: #f1eadd;
+
+    --pencil: #ff8f70;
+    --line: #6b6052;
+    --shadow-color: #000000;
+    --btn-bg: #ffd84d;
+    --btn-fg: #1f1b16;
+    --btn-shadow: #000000;
+
+    --primary-soft: rgba(255, 216, 77, 0.12);
+    --surface: rgba(241, 234, 221, 0.04);
+    --surface-hover: rgba(241, 234, 221, 0.07);
+    --border: rgba(241, 234, 221, 0.14);
+    --muted: #b5a994;
+
+    --app: #1a1714;
+    --panel: #221e1a;
+    --card: #2a251f;
+    --canvas: #141210;
+
+    --scrollbar: rgba(241, 234, 221, 0.18);
+    --scrollbar-hover: rgba(241, 234, 221, 0.32);
+    --selection-text: #1f1b16;
+
+    --color-white: #f1eadd;
+    --color-black: #0f0d0b;
+
+    --color-zinc-50: #fbf8f2;
+    --color-zinc-100: #f1eadd;
+    --color-zinc-200: #e2d8c6;
+    --color-zinc-300: #cfc4b2;
+    --color-zinc-400: #b5a994;
+    --color-zinc-500: #968a77;
+    --color-zinc-600: #8a7e6e;
+    --color-zinc-700: #4a4238;
+    --color-zinc-800: #36302a;
+    --color-zinc-900: #26211c;
+    --color-zinc-950: #1a1714;
+
+    /* Accent: pale shades → marker / coral text, solid fills → marker buttons */
+    --color-blue-50: #2a251f;
+    --color-blue-100: #36302a;
+    --color-blue-200: #ffe38a;
+    --color-blue-300: #ffd84d;
+    --color-blue-400: #ff8f70;
+    --color-blue-500: #ffe27a;
+    --color-blue-600: #ffd84d;
+    --color-blue-700: #f2c935;
+
+    --color-red-300: #ffab94;
+    --color-red-400: #ff8f70;
+    --color-red-500: #ff8f70;
+    --color-red-600: #f0705a;
+    --color-green-300: #a8e2ab;
+    --color-green-400: #8fd694;
+    --color-green-500: #6cc472;
+    --color-amber-300: #f7cc75;
+    --color-amber-400: #f2b84b;
+    --color-amber-500: #f2b84b;
+    --color-yellow-400: #f2b84b;
+    --color-yellow-500: #f2b84b;
+    --color-purple-300: #d6c3ff;
+    --color-purple-400: #c4a8ff;
+    --color-purple-500: #b393ff;
+    --color-orange-400: #ffa36b;
+  }
 }
 
 /* ------------------------------------------------ */
-/* Light theme                                      */
-/*                                                  */
-/* The UI is written with dark-theme utilities      */
-/* (text-white, text-zinc-400, border-white/10 …).  */
-/* Tailwind v4 utilities read --color-* variables,  */
-/* so light mode re-points those variables instead  */
-/* of duplicating every class:                      */
-/*   - white ⇄ near-black, black → white            */
-/*   - the zinc scale is mirrored (400 ⇄ 600 …)     */
-/*   - pale accent text shades get darker so they   */
-/*     stay readable on white                       */
-/* Use paper/ink/on-accent for colours that must    */
-/* stay fixed. Screen-only, so printing is          */
-/* unaffected.                                      */
+/* Signature pieces (layered, so utilities win)     */
 /* ------------------------------------------------ */
 
-@media screen {
-  :root[data-theme="light"] {
-    color-scheme: light;
+@layer components {
+  /* A sheet of paper with an ink outline and a hard shadow */
+  .rf-card {
+    background: var(--panel);
+    border: 2px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 4px 4px 0 var(--shadow-color);
+  }
 
-    --background: #f5f5f7;
-    --foreground: #18181b;
-    --primary-soft: rgba(59, 130, 246, 0.1);
-    --surface: rgba(0, 0, 0, 0.03);
-    --surface-hover: rgba(0, 0, 0, 0.05);
-    --border: rgba(0, 0, 0, 0.1);
-    --muted: rgb(82, 82, 91);
+  .rf-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0 1.1rem;
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    background: var(--panel);
+    color: var(--foreground);
+    font-weight: 700;
+    box-shadow: 3px 3px 0 var(--shadow-color);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+    cursor: pointer;
+  }
+  .rf-btn:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 var(--shadow-color);
+  }
+  .rf-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--shadow-color);
+  }
+  .rf-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+  }
 
-    --app: #f5f5f7;
-    --panel: #ffffff;
-    --card: #f4f4f5;
-    --canvas: #e4e4e7;
+  .rf-btn-primary {
+    background: var(--btn-bg);
+    color: var(--btn-fg);
+    border-color: var(--btn-bg);
+    box-shadow: 3px 3px 0 var(--btn-shadow);
+  }
+  .rf-btn-primary:hover {
+    box-shadow: 4px 4px 0 var(--btn-shadow);
+  }
+  .rf-btn-primary:active {
+    box-shadow: 1px 1px 0 var(--btn-shadow);
+  }
 
-    --grid-line: rgba(0, 0, 0, 0.04);
-    --scrollbar: rgba(0, 0, 0, 0.18);
-    --scrollbar-hover: rgba(0, 0, 0, 0.32);
-    --selection-text: #09090b;
+  /* Rounded sticker: badges, "new", eyebrows */
+  .rf-sticker {
+    display: inline-block;
+    border: 2px solid var(--line);
+    border-radius: 9999px;
+    background: var(--marker);
+    color: #1f1b16;
+    font-weight: 800;
+    box-shadow: 2px 2px 0 var(--shadow-color);
+    transform: rotate(-2deg);
+  }
 
-    --color-white: #09090b;
-    --color-black: #ffffff;
+  /* Highlighter stroke behind a word */
+  .rf-mark {
+    background: linear-gradient(transparent 58%, var(--marker) 58%, var(--marker) 92%, transparent 92%);
+    padding: 0 0.12em;
+  }
+  :root[data-theme="dark"] .rf-mark {
+    background: linear-gradient(transparent 62%, rgba(255, 216, 77, 0.45) 62%, rgba(255, 216, 77, 0.45) 94%, transparent 94%);
+  }
 
-    --color-zinc-50: oklch(14.1% 0.005 285.823);
-    --color-zinc-100: oklch(21% 0.006 285.885);
-    --color-zinc-200: oklch(27.4% 0.006 286.033);
-    --color-zinc-300: oklch(37% 0.013 285.805);
-    --color-zinc-400: oklch(44.2% 0.017 285.786);
-    --color-zinc-500: oklch(52% 0.016 285.938);
-    --color-zinc-600: oklch(70.5% 0.015 286.067);
-    --color-zinc-700: oklch(87.1% 0.006 286.286);
-    --color-zinc-800: oklch(92% 0.004 286.32);
-    --color-zinc-900: oklch(96.7% 0.001 286.375);
-    --color-zinc-950: oklch(98.5% 0 0);
+  /* The red pencil: margin notes and annotations only */
+  .rf-hand {
+    font-family: var(--font-hand);
+    font-weight: 700;
+    color: var(--pencil);
+    line-height: 1.1;
+  }
 
-    --color-blue-200: oklch(42.4% 0.199 265.638);
-    --color-blue-300: oklch(48.8% 0.243 264.376);
-    --color-blue-400: oklch(54.6% 0.245 262.881);
-    --color-red-300: oklch(50.5% 0.213 27.518);
-    --color-red-400: oklch(57.7% 0.245 27.325);
-    --color-green-300: oklch(52.7% 0.154 150.069);
-    --color-green-400: oklch(52.7% 0.154 150.069);
-    --color-green-500: oklch(62.7% 0.194 149.214);
-    --color-amber-300: oklch(55.5% 0.163 48.998);
-    --color-amber-400: oklch(55.5% 0.163 48.998);
-    --color-amber-500: oklch(66.6% 0.179 58.318);
-    --color-yellow-400: oklch(55.4% 0.135 66.442);
-    --color-yellow-500: oklch(68.1% 0.162 75.834);
-    --color-purple-400: oklch(55.8% 0.288 302.321);
-    --color-orange-400: oklch(55.3% 0.195 38.402);
+  /* Sticky note. Always marker-yellow paper, so everything on it is re-pointed
+     to the paper palette (ink text, red pencil) in both themes. */
+  .rf-note {
+    --color-white: #1f1b16;
+    --color-zinc-100: #2a241e;
+    --color-zinc-200: #3a332b;
+    --color-zinc-300: #3a332b;
+    --color-zinc-400: #4a4239;
+    --color-zinc-500: #4a4239;
+    --color-zinc-600: #5e554b;
+    --color-blue-300: #8f2412;
+    --color-blue-400: #8f2412;
+    --color-amber-300: #6b4100;
+    --color-amber-400: #6b4100;
+    --color-green-400: #245524;
+    --pencil: #8f2412;
+    --line: #1f1b16;
+    --panel: #fffdf8;
+    --foreground: #1f1b16;
+    --shadow-color: #1f1b16;
+    --btn-bg: #1f1b16;
+    --btn-fg: #f6f1e7;
+    --btn-shadow: #fffdf8;
+
+    background: var(--marker);
+    color: #1f1b16;
+    border: 2px solid #1f1b16;
+    border-radius: 4px;
+    box-shadow: 4px 4px 0 #1f1b16;
+  }
+  :root[data-theme="dark"] .rf-note {
+    box-shadow: 4px 4px 0 #000000;
+  }
+
+  /* Keyword chips */
+  .rf-chip-found {
+    background: var(--marker);
+    color: #1f1b16;
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    font-weight: 700;
+  }
+  .rf-chip-missing {
+    border: 2px dashed var(--pencil);
+    color: var(--pencil);
+    border-radius: 8px;
+    font-weight: 700;
+  }
+
+  /* Round score sticker. Tone: --good (marker), default (paper), --low (pencil) */
+  .rf-score {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 2.5px solid var(--line);
+    background: var(--panel);
+    color: var(--foreground);
+    font-family: var(--font-serif);
+    line-height: 1;
+    box-shadow: 3px 3px 0 var(--shadow-color);
+  }
+  .rf-score--good {
+    background: var(--marker);
+    color: #1f1b16;
+  }
+  .rf-score--low {
+    border-style: dashed;
+    border-color: var(--pencil);
+    color: var(--pencil);
+    box-shadow: none;
+  }
+
+  /* Ruled index card */
+  .rf-ruled {
+    background-image: repeating-linear-gradient(transparent 0 31px, var(--border) 31px 32px);
   }
 }
 
@@ -142,62 +391,7 @@ body {
   background: var(--background);
   color: var(--foreground);
 
-  font-family: var(--font-geist-sans);
-}
-
-/* ------------------------------------------------ */
-/* Global Background Glow */
-/* ------------------------------------------------ */
-
-body::after {
-  content: "";
-
-  position: fixed;
-  inset: 0;
-
-  pointer-events: none;
-  z-index: -2;
-
-  background:
-    radial-gradient(
-      circle at 50% 0%,
-      var(--primary-soft),
-      transparent 45%
-    );
-}
-
-/* ------------------------------------------------ */
-/* Grid */
-/* ------------------------------------------------ */
-
-body::before {
-  content: "";
-
-  position: fixed;
-  inset: 0;
-
-  pointer-events: none;
-  z-index: -1;
-
-  background-image:
-    linear-gradient(
-      var(--grid-line) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      var(--grid-line) 1px,
-      transparent 1px
-    );
-
-  background-size: 40px 40px;
-
-  opacity: .6;
-
-  mask-image:
-    radial-gradient(circle, black 35%, transparent 100%);
-  -webkit-mask-image:
-    radial-gradient(circle, black 35%, transparent 100%);
+  font-family: var(--font-sans);
 }
 
 /* ------------------------------------------------ */
@@ -219,7 +413,7 @@ footer {
 /* ------------------------------------------------ */
 
 ::selection {
-  background: rgba(59,130,246,.3);
+  background: var(--selection-bg, #ffd84d);
   color: var(--selection-text);
 }
 
@@ -377,6 +571,7 @@ body:has(#analyzer-workspace) {
   
   /* Remove highlight rings on print */
   .ring-2,
+  .ring-marker,
   .ring-blue-500\/40 {
     box-shadow: none !important;
     outline: none !important;

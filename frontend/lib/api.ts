@@ -9,20 +9,57 @@
 // env var is set, so local development works with zero configuration.
 // ============================================================
 
+import { byokHeaders, useAiKeyStore, type AiKeyReason } from "@/store/aiKeyStore";
+
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 /**
- * Build headers for API requests. Includes X-Api-Key when configured.
+ * Build headers for API requests. Includes X-Api-Key when configured, and
+ * the user's own AI key (BYOK) when they saved one — the backend decides per
+ * feature whether to use it.
  */
 export function apiHeaders(extra?: Record<string, string>): Record<string, string> {
   const secret = process.env.NEXT_PUBLIC_API_SECRET_KEY;
-  const headers: Record<string, string> = { ...extra };
+  const headers: Record<string, string> = {
+    ...(typeof window !== "undefined" ? byokHeaders() : {}),
+    ...extra,
+  };
   if (secret) {
     headers["X-Api-Key"] = secret;
   }
   return headers;
 }
+
+/** Backend X-AI-Error codes (see backend/services/llm_client.py). */
+export type AiErrorCode =
+  | "server_exhausted"
+  | "byok_required"
+  | "byok_invalid"
+  | "byok_exhausted"
+  | "byok_model"
+  | "byok_unavailable";
+
+/** A failed API call, with what the UI needs to react to it. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly aiErrorCode: AiErrorCode | null = null,
+    readonly retryAfterSeconds: number | null = null,
+  ) {
+    super(message);
+  }
+}
+
+// Codes where the user's own key would fix things: open AI settings.
+const KEY_DIALOG_CODES: ReadonlySet<string> = new Set([
+  "server_exhausted",
+  "byok_required",
+  "byok_invalid",
+  "byok_exhausted",
+  "byok_model",
+]);
 
 /**
  * POST JSON to a backend endpoint and return the parsed response.
@@ -70,9 +107,10 @@ export async function apiPostForm<T>(
 }
 
 /**
- * Convert a failed Response into an Error carrying the server's detail.
+ * Convert a failed Response into an ApiError carrying the server's detail.
+ * When the failure is one the user's own AI key would fix, AI settings open.
  */
-export async function toApiError(response: Response): Promise<Error> {
+export async function toApiError(response: Response): Promise<ApiError> {
   let detail = `Request failed with status ${response.status}.`;
   if (response.status === 429) {
     const retryAfter = response.headers.get("retry-after");
@@ -100,5 +138,15 @@ export async function toApiError(response: Response): Promise<Error> {
   } catch {
     // keep default detail
   }
-  return new Error(detail);
+  const code = response.headers.get("x-ai-error");
+  const retryAfter = Number(response.headers.get("retry-after"));
+  if (code && KEY_DIALOG_CODES.has(code) && typeof window !== "undefined") {
+    useAiKeyStore.getState().openDialog(code as AiKeyReason);
+  }
+  return new ApiError(
+    detail,
+    response.status,
+    (code as AiErrorCode | null) || null,
+    Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null,
+  );
 }

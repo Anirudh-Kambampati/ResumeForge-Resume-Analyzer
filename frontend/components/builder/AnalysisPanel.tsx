@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import UseOwnKeyLink from "@/components/ai/UseOwnKeyLink";
 import { pdf } from "@react-pdf/renderer";
 import {
   AlertTriangle,
@@ -189,6 +190,9 @@ export default function AnalysisPanel({ onClose }: Props) {
                 <span>
                   {result.ai_review_error || "The AI review could not be completed."} The ATS score is still
                   accurate; re-analyze to try the AI review again.
+                  {result.ai_review_error_code && ["server_exhausted", "byok_invalid", "byok_exhausted", "byok_model"].includes(result.ai_review_error_code) && (
+                    <UseOwnKeyLink className="mt-2 flex" />
+                  )}
                 </span>
               </div>
             )}

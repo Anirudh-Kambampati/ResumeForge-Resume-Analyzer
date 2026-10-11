@@ -95,18 +95,19 @@ export default function OnboardingModal({ isOpen, onClose }: Props) {
           />
 
           {/* Modal */}
-          <motion.div
-            className="relative z-10 w-full max-w-2xl rounded-3xl border border-white/[0.06] bg-panel p-8 shadow-2xl shadow-black/50 sm:p-10"
-            variants={modalVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-          >
-            {/* Close button */}
-            <button
-              onClick={onClose}
-              className="absolute right-5 top-5 flex h-8 w-8 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.03] text-zinc-500 transition-colors hover:bg-white/[0.08] hover:text-zinc-300"
+        <motion.div
+          className="rf-card relative z-10 w-full max-w-2xl rounded-3xl p-8 shadow-[6px_6px_0_var(--shadow-color)] sm:p-10"
+          variants={modalVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+        >
+          {/* Close button */}
+          <button
+            onClick={onClose}
+              className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-xl border-2 border-line bg-panel text-white transition hover:bg-marker hover:text-[#1f1b16]"
               aria-label="Close modal"
+              autoFocus
             >
               <svg
                 width="14"
@@ -125,7 +126,7 @@ export default function OnboardingModal({ isOpen, onClose }: Props) {
             <div className="mb-8 text-center sm:mb-10">
               <h2
                 id="onboarding-heading"
-                className="text-2xl font-bold tracking-tight text-white sm:text-3xl"
+                className="font-serif text-4xl font-normal text-white sm:text-5xl"
               >
                 How would you like to start?
               </h2>
@@ -143,13 +144,13 @@ export default function OnboardingModal({ isOpen, onClose }: Props) {
                 animate="visible"
                 custom={0}
                 onClick={handleCreateNew}
-                className="group relative flex flex-col items-center rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 text-center transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/40 hover:bg-white/[0.05] hover:shadow-lg hover:shadow-blue-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                className="group rf-card relative flex flex-col items-center p-8 text-center transition-transform duration-300 hover:-translate-y-1 hover:-rotate-1"
               >
-                <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-400 transition-all duration-300 group-hover:bg-blue-500/15 group-hover:text-blue-300 group-hover:shadow-[0_0_24px_rgba(59,130,246,0.12)]">
+                <div className="mb-5 flex h-14 w-14 -rotate-3 items-center justify-center rounded-2xl border-2 border-line bg-marker text-[#1f1b16] shadow-[3px_3px_0_var(--shadow-color)]">
                   <FilePlus size={28} strokeWidth={1.5} />
                 </div>
 
-                <h3 className="mb-1.5 text-lg font-semibold tracking-tight text-white">
+                <h3 className="mb-1.5 text-lg font-extrabold text-white">
                   Create New Resume
                 </h3>
 
@@ -157,7 +158,7 @@ export default function OnboardingModal({ isOpen, onClose }: Props) {
                   Start with a blank ATS-friendly resume.
                 </p>
 
-                <span className="mt-auto inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-on-accent transition-all duration-300 group-hover:bg-blue-500 shadow-lg shadow-blue-600/10">
+                <span className="rf-btn rf-btn-primary mt-auto gap-1.5 px-5 text-sm">
                   Start Building
                   <svg
                     width="14"
@@ -182,13 +183,13 @@ export default function OnboardingModal({ isOpen, onClose }: Props) {
                 animate="visible"
                 custom={1}
                 onClick={handleImport}
-                className="group relative flex flex-col items-center rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 text-center transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/40 hover:bg-white/[0.05] hover:shadow-lg hover:shadow-blue-500/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                className="group rf-card relative flex flex-col items-center p-8 text-center transition-transform duration-300 hover:-translate-y-1 hover:-rotate-1"
               >
-                <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-400 transition-all duration-300 group-hover:bg-blue-500/15 group-hover:text-blue-300 group-hover:shadow-[0_0_24px_rgba(59,130,246,0.12)]">
+                <div className="mb-5 flex h-14 w-14 -rotate-3 items-center justify-center rounded-2xl border-2 border-line bg-marker text-[#1f1b16] shadow-[3px_3px_0_var(--shadow-color)]">
                   <Upload size={28} strokeWidth={1.5} />
                 </div>
 
-                <h3 className="mb-1.5 text-lg font-semibold tracking-tight text-white">
+                <h3 className="mb-1.5 text-lg font-extrabold text-white">
                   Import Existing Resume
                 </h3>
 
@@ -197,7 +198,7 @@ export default function OnboardingModal({ isOpen, onClose }: Props) {
                   Builder.
                 </p>
 
-                <span className="mt-auto inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-2.5 text-sm font-semibold text-zinc-200 backdrop-blur-xl transition-all duration-300 group-hover:border-blue-500/30 group-hover:bg-white/[0.06] group-hover:text-white">
+                <span className="rf-btn mt-auto gap-1.5 px-5 text-sm">
                   Import Resume
                   <svg
                     width="14"

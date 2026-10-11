@@ -90,18 +90,18 @@ class AnalyzeFallbackTests(unittest.TestCase):
         os.environ["OPENROUTER_API_KEY"] = "test-key"
         import main
         cls.main = main
-        cls._orig_from_env = main.LLMClient.from_env
+        cls._orig_resolve = main.resolve_llm_client
         cls._orig_extract = main._extract_resume_text
         main._extract_resume_text = lambda data, name: (RESUME_TEXT, [], 1)
         cls.client = TestClient(main.app)
 
     @classmethod
     def tearDownClass(cls):
-        cls.main.LLMClient.from_env = cls._orig_from_env
+        cls.main.resolve_llm_client = cls._orig_resolve
         cls.main._extract_resume_text = cls._orig_extract
 
     def analyze(self, fake_llm, **form):
-        self.main.LLMClient.from_env = staticmethod(lambda *a, **k: fake_llm)
+        self.main.resolve_llm_client = lambda *a, **k: fake_llm
         response = self.client.post(
             "/api/analyze",
             files={"resume": ("resume.pdf", b"%PDF-stub", "application/pdf")},

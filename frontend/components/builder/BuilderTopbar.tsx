@@ -16,6 +16,7 @@ import { ResumePDFDocument } from "./preview/ResumePDFDocument";
 import { useResumeStore } from "@/store/resumeStore";
 import { useResumeImport, RESUME_ACCEPT_ATTRIBUTE } from "@/lib/useResumeImport";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import AiKeyButton from "@/components/ai/AiKeyButton";
 
 type Props = {
   resetResume: () => void;
@@ -72,6 +73,7 @@ export default function BuilderTopbar({
     status: importStatus,
     fileName: importFileName,
     errorMessage: importError,
+    importMeta,
     importFile,
     reset: resetImport,
     inputRef,
@@ -100,7 +102,12 @@ export default function BuilderTopbar({
   if (importStatus !== prevStatusRef.current) {
     prevStatusRef.current = importStatus;
     if (importStatus === "success") {
-      showToast(`"${importFileName}" imported successfully.`, "success");
+      showToast(
+        importMeta && importMeta.ai_review !== "applied"
+          ? `"${importFileName}" imported with the rule-based parser (AI review unavailable). Check each section.`
+          : `"${importFileName}" imported successfully.`,
+        "success",
+      );
     } else if (importStatus === "error") {
       showToast(importError || "Import failed. Please try again.", "error");
     }
@@ -180,7 +187,7 @@ export default function BuilderTopbar({
   };
 
   return (
-    <header className="flex h-16 items-center justify-between gap-2 border-b border-white/10 bg-app px-3 sm:px-4 lg:px-8">
+    <header className="flex h-16 items-center justify-between gap-2 border-b-2 border-line bg-app px-3 sm:px-4 lg:px-8">
       {/* Left */}
       <div className="flex min-w-0 items-center gap-2 sm:gap-6">
         {onOpenSidebar && (
@@ -194,7 +201,7 @@ export default function BuilderTopbar({
           </button>
         )}
         <div className="hidden sm:block">
-          <h2 className="text-lg font-semibold tracking-tight">
+          <h2 className="font-serif text-[26px] font-normal leading-none">
             Resume Builder
           </h2>
           <p className="hidden text-sm text-zinc-500 xl:block">
@@ -222,6 +229,7 @@ export default function BuilderTopbar({
 
       {/* Right */}
       <div className="flex items-center gap-1.5 sm:gap-3">
+        <AiKeyButton compact />
         <ThemeToggle />
 
         {/* Hidden file input — wired through the shared hook */}
@@ -243,9 +251,11 @@ export default function BuilderTopbar({
             items-center
             gap-2
             rounded-xl
-            border
-            border-white/10
-            bg-white/[0.03]
+            border-2
+            border-line
+            bg-panel
+            font-semibold
+            shadow-[2px_2px_0_var(--shadow-color)]
             px-2.5
             md:px-4
             py-2
@@ -274,9 +284,11 @@ export default function BuilderTopbar({
             items-center
             gap-2
             rounded-xl
-            border
-            border-white/10
-            bg-white/[0.03]
+            border-2
+            border-line
+            bg-panel
+            font-semibold
+            shadow-[2px_2px_0_var(--shadow-color)]
             px-2.5
             md:px-4
             py-2
@@ -301,15 +313,16 @@ export default function BuilderTopbar({
               items-center
               gap-2
               rounded-xl
-              border
+              border-2
+              font-semibold
               px-2.5
               md:px-4
               py-2
               text-sm
               transition
               ${analysisOpen
-                ? "border-blue-500/40 bg-blue-500/10 text-blue-300"
-                : "border-white/10 bg-white/[0.03] text-zinc-300 hover:bg-white/[0.06] hover:text-white"}
+                ? "border-line bg-marker text-[#1f1b16] shadow-[2px_2px_0_var(--shadow-color)]"
+                : "border-line bg-panel text-zinc-200 shadow-[2px_2px_0_var(--shadow-color)] hover:text-white"}
             `}
           >
             <Sparkles size={16} />
@@ -325,18 +338,13 @@ export default function BuilderTopbar({
             flex
             items-center
             gap-2
-            rounded-xl
-            bg-blue-600
+            rf-btn
+            rf-btn-primary
+            min-h-0
             px-2.5
             md:px-4
             py-2
             text-sm
-            font-semibold
-            text-on-accent
-            transition
-            hover:bg-blue-500
-            shadow-lg
-            shadow-blue-600/10
             disabled:opacity-50
             disabled:cursor-not-allowed
           "

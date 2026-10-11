@@ -35,9 +35,9 @@ export default function BuilderSidebar({
       <div className="shrink-0 border-b border-white/[0.06] px-4 py-[18px]">
         <Link
           href="/"
-          className="text-sm font-bold tracking-tight text-white transition-colors hover:text-blue-400"
+          className="font-serif text-2xl leading-none text-white transition-colors hover:text-pencil"
         >
-          ResumeForge
+          Resume<em>Forge</em>
         </Link>
       </div>
 

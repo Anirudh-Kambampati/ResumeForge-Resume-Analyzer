@@ -1,0 +1,20 @@
+Rahul Verma
+rahul.verma@gmail.com | +91 98765 43210 | github.com/rahulv | linkedin.com/in/rahulv
+EDUCATION
+Indian Institute of Technology, Bombay                      2020 - 2024
+B.Tech in Computer Science and Engineering               CGPA: 8.7/10
+Delhi Public School, R.K. Puram                                  2020
+Class XII (CBSE)                                           95.2%
+EXPERIENCE
+Software Development Intern                                May 2023 - Jul 2023
+Amazon, Bangalore
+- Built a Java microservice for inventory reconciliation handling 1M events/day.
+- Reduced p99 latency by 30%.
+PROJECTS
+ResumeForge | Next.js, FastAPI, Python                       Jan 2024
+- AI resume builder with ATS scoring.
+TECHNICAL SKILLS
+Languages: C++, Python, Java, JavaScript
+Developer Tools: Git, Docker, VS Code
+ACHIEVEMENTS
+- Global rank 312 in Google Code Jam 2023

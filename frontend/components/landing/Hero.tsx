@@ -1,21 +1,78 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import OnboardingModal from "./OnboardingModal";
+import { ArrowRight } from "lucide-react";
+
+const OnboardingModal = dynamic(() => import("./OnboardingModal"));
 
 const audience = [
-  "Students",
-  "Graduates",
-  "Developers",
-  "Designers",
-  "Interns",
-  "Career Switchers",
-  "Professionals",
-  "Job Seekers",
-  "Everyone",
+  "students",
+  "graduates",
+  "developers",
+  "designers",
+  "interns",
+  "career switchers",
+  "professionals",
+  "job seekers",
+  "recruiters",
+  "hiring teams",
+  "everyone",
 ];
+
+/** A resume page with red-pencil markup, the score sticker and a sticky note. */
+function MarkedUpSheet() {
+  return (
+    <div aria-hidden="true" className="relative mx-auto w-full max-w-[500px]">
+      <div className="rotate-[1.4deg] rounded-md border-[1.5px] border-zinc-800 bg-panel px-8 py-9 shadow-[0_1px_0_var(--color-zinc-800),0_30px_50px_-28px_rgba(70,45,15,.45)] sm:px-10">
+        <div className="font-serif text-4xl leading-none">Jane Smith</div>
+        <div className="mt-1.5 text-[13px] text-zinc-500">Product Designer · Brooklyn, NY · jane.smith@gmail.com</div>
+        <div className="mb-4 mt-[18px] h-[1.5px] bg-line" />
+        <div className="text-[11px] font-extrabold uppercase tracking-[0.14em]">Experience</div>
+        <div className="mt-2.5 flex justify-between gap-3 text-sm">
+          <span className="font-bold">Senior Product Designer, Spotify</span>
+          <span className="text-zinc-500">2021 – now</span>
+        </div>
+        <ul className="mt-2 list-disc space-y-1 pl-[18px] text-[13.5px] leading-[1.7] text-zinc-200">
+          <li>
+            <span className="line-through decoration-pencil decoration-2">Responsible for the</span>{" "}
+            <span className="rf-hand text-[21px]">Led the</span> redesign of the playlist editor, lifting weekly
+            edits by 18%.
+          </li>
+          <li>
+            Partnered with engineering squads to ship a shared design system.
+            <span className="rf-hand block -rotate-1 text-xl">↳ how many squads? numbers stick</span>
+          </li>
+        </ul>
+        <div className="mt-4 text-[11px] font-extrabold uppercase tracking-[0.14em]">Skills</div>
+        <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[13px]">
+          <span>Figma</span>
+          <span>·</span>
+          <span>Prototyping</span>
+          <span>·</span>
+          <span className="-rotate-3 rounded-[50%] border-2 border-pencil px-2.5 py-1">Usability testing</span>
+          <span className="rf-hand text-xl">← the job asks for this. Move it up!</span>
+        </div>
+      </div>
+
+      {/* Score sticker */}
+      <div className="rf-score rf-score--good absolute -top-6 right-2 h-28 w-28 rotate-[9deg] flex-col">
+        <span className="font-sans text-[11px] font-extrabold tracking-[0.12em]">ATS</span>
+        <span className="text-[46px]">86</span>
+        <span className="font-sans text-[11px] font-semibold">/ 100</span>
+      </div>
+
+      {/* Sticky note */}
+      <div className="rf-card absolute -bottom-16 -left-2 -rotate-[4deg] sm:-left-6 rounded-[4px] px-4 py-3 font-hand text-2xl font-bold leading-[1.1]">
+        3 quick fixes
+        <br />
+        before you send it
+      </div>
+    </div>
+  );
+}
 
 export default function Hero() {
   const [index, setIndex] = useState(0);
@@ -27,92 +84,69 @@ export default function Hero() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       setIndex((prev) => (prev + 1) % audience.length);
-    }, audience[index] === "Everyone" ? 4000 : 2400);
+    }, audience[index] === "everyone" ? 4000 : 2400);
 
     return () => clearTimeout(timeout);
   }, [index]);
 
   return (
-    <section
-      id="hero"
-      className="relative flex min-h-screen snap-start items-start justify-center overflow-hidden px-6 pt-16 md:pt-20"
-    >
-      {/* Glow */}
-      <div className="absolute left-1/2 top-[38%] -z-10 h-[580px] w-[580px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600/20 blur-[150px]" />
+    <section id="hero" className="relative flex min-h-screen snap-start items-center px-6 pb-16 pt-28">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-16">
+        <div className="min-w-0 flex-[1_1_480px]">
+          <span className="rf-sticker px-4 py-1.5 text-sm">Build · Analyze · Improve</span>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center text-center pt-4">
-        {/* Badge */}
-        <div className="rounded-full border border-blue-500/20 bg-blue-500/10 px-4 py-2 text-sm text-blue-300 backdrop-blur-xl">
-          ✨ Build • Analyze • Improve
-        </div>
+          <h1 className="mt-7 font-serif text-[clamp(56px,8vw,96px)] font-normal leading-[0.98] tracking-[-0.015em]">
+            Forge a resume that gets <em className="rf-mark">read.</em>
+          </h1>
+          <p className="rf-hand ml-1 mt-3 origin-left -rotate-[1.5deg] text-[28px] sm:text-[30px]">
+            by recruiters, and by the robots before them ↑
+          </p>
 
-        {/* Heading */}
-        <h1 className="mt-5 max-w-5xl text-5xl font-bold leading-tight tracking-tight md:text-7xl">
-          Forge resumes
-          <br />
-          <span className="bg-gradient-to-r from-white via-blue-200 to-blue-500 bg-clip-text text-transparent">
-            that get interviews.
-          </span>
-        </h1>
+          <p className="mt-5 max-w-[520px] text-lg leading-8 text-zinc-400">
+            Write a resume from scratch, or check the one you have against any job description. See exactly what
+            to fix, line by line, and walk into the interview ready.
+          </p>
 
-        {/* Subtitle */}
-        <p className="mt-5 max-w-3xl text-lg leading-8 text-zinc-400 md:text-xl">
-          Build professional resumes from scratch or analyze your existing
-          resume against any job description using AI. Improve your ATS score,
-          strengthen your experience, and prepare confidently for interviews.
-        </p>
+          <div className="mt-8 flex flex-wrap gap-3.5">
+            <button onClick={onOpen} className="rf-btn rf-btn-primary min-h-[56px] px-7 text-[17px]">
+              Build my resume <ArrowRight size={18} />
+            </button>
+            <Link href="/analyzer" className="rf-btn min-h-[56px] px-7 text-[17px]">
+              Check my resume
+            </Link>
+          </div>
 
-        {/* CTA */}
-        <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-          <button
-            onClick={onOpen}
-            className="rounded-2xl bg-blue-600 px-8 py-4 text-base font-medium text-on-accent transition-all duration-300 hover:scale-[1.02] hover:bg-blue-500 cursor-pointer"
-          >
-            Build Resume
-          </button>
+          <div className="mt-8 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="text-sm font-semibold text-zinc-500">Built for</span>
+            <span className="relative inline-flex h-10 min-w-[12ch] items-center overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={audience[index]}
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -14 }}
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  className="font-serif text-3xl italic"
+                >
+                  {audience[index]}.
+                </motion.span>
+              </AnimatePresence>
+            </span>
+          </div>
 
           <Link
-            href="/analyzer"
-            className="rounded-2xl border border-white/10 bg-white/[0.03] px-8 py-4 text-base font-medium backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:border-blue-500/40 hover:bg-white/[0.05]"
+            href="/business"
+            className="group mt-4 inline-flex flex-wrap items-center gap-2 text-sm text-zinc-500 transition-colors hover:text-zinc-300"
           >
-            Analyze Resume
+            Hiring? Screen every applicant with
+            <span className="font-semibold text-pencil underline decoration-2 underline-offset-4 group-hover:decoration-wavy">
+              ResumeForge for Businesses →
+            </span>
           </Link>
         </div>
 
-        {/* Built For */}
-        <div className="mt-14 flex flex-col items-center">
-          <p className="mb-3 text-xs font-medium uppercase tracking-[0.4em] text-zinc-500">
-            BUILT FOR
-          </p>
-          <div className="relative flex h-16 items-center justify-center overflow-hidden">
-            <AnimatePresence mode="wait">
-              <motion.h2
-                key={audience[index]}
-                initial={{
-                  opacity: 0,
-                  y: 20,
-                  filter: "blur(10px)",
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                  filter: "blur(0px)",
-                }}
-                exit={{
-                  opacity: 0,
-                  y: -20,
-                  filter: "blur(10px)",
-                }}
-                transition={{
-                  duration: 0.55,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-                className="bg-gradient-to-r from-white via-blue-200 to-blue-500 bg-clip-text text-3xl font-bold tracking-tight text-transparent md:text-5xl"
-              >
-                {audience[index]}.
-              </motion.h2>
-            </AnimatePresence>
-          </div>
+        <div className="flex min-w-0 flex-[1_1_420px] justify-center py-8">
+          <MarkedUpSheet />
         </div>
       </div>
 

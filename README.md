@@ -34,7 +34,7 @@ Whether you're a student applying for internships, a software engineer targeting
 - ATS-friendly layouts
 - Automatic pagination
 - Export as PDF
-- Import an existing resume (PDF or DOCX)
+- Import an existing resume (PDF or DOCX) — parsed deterministically, then reviewed by AI before it fills the builder
 - Reorder entries within every section
 
 ---
@@ -48,6 +48,27 @@ Whether you're a student applying for internships, a software engineer targeting
 - Grammar & writing suggestions
 - Actionable improvement tips
 - Analyze directly from the builder and apply rewritten bullets in one click
+
+---
+
+### 🏢 ResumeForge for Businesses
+
+- Screen a batch of resumes against one job description (`/business/screening`)
+- Parallel queues — one per opening, all screening at once with fair scheduling
+- AI extracts requirements once; recruiters review and edit them
+- Deterministic, explainable 100-point match score for every candidate
+- On-demand AI candidate briefs with gaps and interview questions
+- CSV export; nothing stored server-side
+- AI features run on your own key (BYOK); scoring is free
+
+---
+
+### 🔑 Bring Your Own Key
+
+- Add an OpenAI, Anthropic, Google Gemini, Groq or OpenRouter key in the app
+- Individuals: ResumeForge's free AI runs first; your key is used only when it's exhausted
+- Businesses: AI features always use your key
+- Key stays in your browser (opt-in "remember on this device"); the server forwards it per request and never stores or logs it
 
 ---
 

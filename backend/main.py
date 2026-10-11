@@ -1,13 +1,15 @@
 import os
 import logging
 from typing import Any, Optional, List, Dict, Tuple
-from fastapi import Depends, FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import Depends, FastAPI, UploadFile, File, Form, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 from services.rate_limiter import ai_rate_limit, is_api_key_configured
+from services.analyze_prompts import build_analyze_prompts
 
 from services.scoring_service import score_resume, normalize_skill, SKILL_ALIASES
 from services.jd_service import calculate_job_match
@@ -17,7 +19,10 @@ from services.bullet_evidence import is_safe_rewrite
 from services.import_service import run_import_pipeline
 from services.extractor import extract_text_from_pdf, ExtractionResult
 from services.docx_extractor import extract_text_from_docx, DocxExtractionResult
-from services.ats_service import run_ats_optimization
+from services import screening_service
+from services.ai_access import BYOK_PROVIDERS, ai_error_code, byok_target_from_request, resolve_llm_client, server_llm_client
+from services.llm_client import AI_ERROR_HEADER
+from services.resume_import import import_resume
 
 # -------------------------------------------------------------------
 # Logging infrastructure — stage-level granularity
@@ -49,12 +54,25 @@ _RATE_LIMIT_PARSE = int(os.getenv("RATE_LIMIT_PARSE", "10"))
 _RATE_LIMIT_ATS = int(os.getenv("RATE_LIMIT_ATS", "10"))
 _RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
 _RATE_LIMIT_HEALTH = int(os.getenv("RATE_LIMIT_HEALTH", "30"))
+# Business screening: requirements + briefs call the LLM; screening is
+# deterministic and cheap, so it allows bulk uploads across parallel queues.
+_RATE_LIMIT_REQUIREMENTS = int(os.getenv("RATE_LIMIT_REQUIREMENTS", "10"))
+_RATE_LIMIT_SCREEN = int(os.getenv("RATE_LIMIT_SCREEN", "240"))
+_RATE_LIMIT_BRIEF = int(os.getenv("RATE_LIMIT_BRIEF", "20"))
+# One short AI call per screened resume — a higher window than briefs, and
+# its own limiter so bulk summarising can't starve on-demand briefs.
+_RATE_LIMIT_SUMMARY = int(os.getenv("RATE_LIMIT_SUMMARY", "60"))
 
 rate_limit_analyze = ai_rate_limit(_RATE_LIMIT_ANALYZE, _RATE_LIMIT_WINDOW)
 rate_limit_improve = ai_rate_limit(_RATE_LIMIT_IMPROVE, _RATE_LIMIT_WINDOW)
 rate_limit_parse = ai_rate_limit(_RATE_LIMIT_PARSE, _RATE_LIMIT_WINDOW)
 rate_limit_ats = ai_rate_limit(_RATE_LIMIT_ATS, _RATE_LIMIT_WINDOW)
 rate_limit_health = ai_rate_limit(_RATE_LIMIT_HEALTH, _RATE_LIMIT_WINDOW)
+rate_limit_requirements = ai_rate_limit(_RATE_LIMIT_REQUIREMENTS, _RATE_LIMIT_WINDOW)
+rate_limit_screen = ai_rate_limit(_RATE_LIMIT_SCREEN, _RATE_LIMIT_WINDOW)
+rate_limit_brief = ai_rate_limit(_RATE_LIMIT_BRIEF, _RATE_LIMIT_WINDOW)
+rate_limit_summary = ai_rate_limit(_RATE_LIMIT_SUMMARY, _RATE_LIMIT_WINDOW)
+rate_limit_key_check = ai_rate_limit(int(os.getenv("RATE_LIMIT_KEY_CHECK", "10")), _RATE_LIMIT_WINDOW)
 
 # Max accepted resume file size. Enforced before reading the whole body into memory.
 MAX_RESUME_BYTES = 5 * 1024 * 1024
@@ -102,34 +120,21 @@ def _extract_resume_text(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://resume-forge-chi-five.vercel.app",
-    ],
+    # Any localhost/dev port works in development; production is pinned to
+    # the deployed frontend (and any Vercel preview of it).
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://([a-z0-9-]+\.)?resume-forge-chi-five\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Retry-After drives client back-off; X-AI-Error tells the UI when to
+    # ask for the user's own key. Cross-origin JS can't read them otherwise.
+    expose_headers=["Retry-After", AI_ERROR_HEADER],
 )
 
 
 # -------------------------------------------------------------------
-# Shared helpers (model definitions, config)
+# Model definitions
 # -------------------------------------------------------------------
-
-
-def get_openrouter_config():
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    model = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
-
-    if model.startswith("OPENROUTER_MODEL="):
-        model = model[len("OPENROUTER_MODEL=") :].strip()
-    else:
-        model = model.strip()
-
-    if not api_key or api_key.strip() == "" or "your_openrouter_api_key" in api_key:
-        return None, model
-    return api_key.strip(), model
 
 
 class ImproveRequest(BaseModel):
@@ -146,6 +151,31 @@ class JDRequirements(BaseModel):
     responsibilities: List[str] = Field(default_factory=list)
 
 
+# Job descriptions longer than this are almost always pasted page chrome
+MAX_JOB_DESCRIPTION_CHARS = 20000
+MIN_JOB_DESCRIPTION_CHARS = 50
+
+
+class RequirementsRequest(BaseModel):
+    job_description: str = Field(min_length=MIN_JOB_DESCRIPTION_CHARS, max_length=MAX_JOB_DESCRIPTION_CHARS)
+
+
+class CandidateBriefRequest(BaseModel):
+    resume_text: str = Field(min_length=1, max_length=60000)
+    job_description: str = Field(min_length=1, max_length=MAX_JOB_DESCRIPTION_CHARS)
+    jd_requirements: JDRequirements
+    match_score: Optional[int] = None
+    missing_keywords: List[str] = Field(default_factory=list)
+
+
+class CandidateSummaryRequest(BaseModel):
+    resume_text: str = Field(min_length=1, max_length=60000)
+    job_description: str = Field(min_length=1, max_length=MAX_JOB_DESCRIPTION_CHARS)
+    jd_requirements: JDRequirements
+    match_score: Optional[int] = None
+    missing_keywords: List[str] = Field(default_factory=list)
+
+
 # -------------------------------------------------------------------
 # Health
 # -------------------------------------------------------------------
@@ -153,15 +183,15 @@ class JDRequirements(BaseModel):
 
 @app.get("/api/health")
 def health_check():
-    api_key, model = get_openrouter_config()
-    llm = LLMClient.from_env(api_key, model)
+    llm = server_llm_client()
     return {
         "status": "healthy",
         "ai_provider_configured": llm is not None,
-        "configured_model": llm.model if llm else model,
+        "configured_model": llm.model if llm else "",
         "model_chain": llm.model_chain if llm else [],
         "api_key_required": is_api_key_configured(),
         "supported_formats": ["pdf", "docx"],
+        "byok_providers": {name: {"default_model": p.default_model} for name, p in BYOK_PROVIDERS.items()},
     }
 
 
@@ -172,6 +202,7 @@ def health_check():
 
 @app.post("/api/parse")
 async def parse_resume_endpoint(
+    request: Request,
     resume: UploadFile = File(...),
     _: None = Depends(rate_limit_parse),
 ):
@@ -190,15 +221,7 @@ async def parse_resume_endpoint(
     # Read once — a second UploadFile.read() returns b"" (stream is at EOF)
     file_bytes = await resume.read()
     _validate_resume_upload(resume, file_bytes)
-    # Check configuration
-    api_key, model = get_openrouter_config()
-    llm_client = LLMClient.from_env(api_key, model)
-    if llm_client is None:
-        raise HTTPException(
-            status_code=500,
-            detail="OPENROUTER_API_KEY is not configured on the backend server. "
-            "Please verify the .env configuration.",
-        )
+    llm_client = resolve_llm_client(request, "individual")
 
     # Run the pipeline
     result = await run_import_pipeline(
@@ -257,18 +280,11 @@ def _parse_ai_score(value: Any) -> Optional[int]:
 
 @app.post("/api/analyze")
 async def analyze_resume(
+    request: Request,
     resume: UploadFile = File(...),
     job_description: Optional[str] = Form(None),
     _: None = Depends(rate_limit_analyze),
 ):
-    api_key, model = get_openrouter_config()
-    llm_client = LLMClient.from_env(api_key, model)
-    if llm_client is None:
-        raise HTTPException(
-            status_code=500,
-            detail="OPENROUTER_API_KEY is not configured on the backend server. "
-            "Please verify the .env configuration.",
-        )
 
     # Read once — a second UploadFile.read() returns b"" (stream is at EOF)
     file_bytes = await resume.read()
@@ -292,102 +308,22 @@ async def analyze_resume(
     deterministic_rule_score = det_score_result["total_score"]
     rule_breakdown = det_score_result["breakdown"]
 
-    # 2. Extract JD requirements (if applicable) and AI Review
-    if is_job_match:
-        system_prompt = (
-            "You are an expert AI resume reviewer. "
-            "You must extract structured requirements from the job description and evaluate the resume text. "
-            "You must provide an AI Review Score (0-100) reflecting clarity, impact, positioning, conciseness, and overall resume strength. "
-            "Evaluate whether the resume communicates information efficiently and remains easy to scan. "
-            "Identify overly long bullets, verbose summaries, paragraph-heavy content, and unnecessary repetition. "
-            "Do not penalize a resume solely for being two pages long. Focus on content efficiency rather than page count. "
-            "Do not evaluate, criticize, or score resume date formatting or date consistency. "
-            "Explain any meaningful disagreement between the Deterministic Rule Score and your AI Review Score in a 'score_gap_insight'. "
-            "The deterministic score measures ATS-oriented structure and parseability, not content quality. DO NOT recalculate it. DO NOT fabricate candidate claims. "
-            "Output MUST be valid JSON."
-        )
-
-        user_prompt = f"""
-Deterministic Rule Score: {deterministic_rule_score}/100
-
-RESUME CONTENT:
-\"\"\"
-{extracted_text}
-\"\"\"
-
-JOB DESCRIPTION:
-\"\"\"
-{job_description}
-\"\"\"
-
-Return a valid JSON object:
-{{
-  "ai_review_score": 75,
-  "score_gap_insight": "Insight explaining the difference between the deterministic {deterministic_rule_score} and your AI review score.",
-  "jd_requirements": {{
-    "target_title": "AI Engineer",
-    "required_skills": ["python", "fastapi"],
-    "preferred_skills": ["docker"],
-    "domain_keywords": ["backend", "api"],
-    "responsibilities": ["design APIs"]
-  }},
-  "summary": "AI summary of the resume.",
-  "strengths": ["string"],
-  "weaknesses": ["string"],
-  "suggestions": [
-    {{"title": "string", "description": "string", "priority": "high|medium|low"}}
-  ],
-  "improved_bullets": [
-    {{"original": "string", "improved": "string"}}
-  ],
-  "interview_focus": ["string"]
-}}
-"""
-    else:
-        system_prompt = (
-            "You are an expert AI resume reviewer. "
-            "You must provide an AI Review Score (0-100) reflecting clarity, impact, positioning, conciseness, and overall resume strength. "
-            "Evaluate whether the resume communicates information efficiently and remains easy to scan. "
-            "Identify overly long bullets, verbose summaries, paragraph-heavy content, and unnecessary repetition. "
-            "Do not penalize a resume solely for being two pages long. Focus on content efficiency rather than page count. "
-            "Do not evaluate, criticize, or score resume date formatting or date consistency. "
-            "Explain any meaningful disagreement between the Deterministic Rule Score and your AI Review Score in a 'score_gap_insight'. "
-            "The deterministic score measures ATS-oriented structure and parseability, not content quality. DO NOT recalculate it. DO NOT fabricate candidate claims. "
-            "Output MUST be valid JSON."
-        )
-
-        user_prompt = f"""
-Deterministic Rule Score: {deterministic_rule_score}/100
-
-RESUME CONTENT:
-\"\"\"
-{extracted_text}
-\"\"\"
-
-Return a valid JSON object:
-{{
-  "ai_review_score": 75,
-  "score_gap_insight": "Insight explaining the difference between the deterministic {deterministic_rule_score} and your AI review score.",
-  "summary": "AI summary of the resume.",
-  "strengths": ["string"],
-  "weaknesses": ["string"],
-  "suggestions": [
-    {{"title": "string", "description": "string", "priority": "high|medium|low"}}
-  ],
-  "improved_bullets": [
-    {{"original": "string", "improved": "string"}}
-  ]
-}}
-"""
+    # 2. AI Review (JD requirements are extracted inside the same call when a JD is given)
+    system_prompt, user_prompt = build_analyze_prompts(
+        extracted_text, deterministic_rule_score, job_description or ""
+    )
 
     # The AI review is best-effort: if the provider call or JSON repair fails,
     # still return the deterministic ATS results instead of failing the request.
     parsed_json: Dict[str, Any] = {}
     ai_error: Optional[str] = None
+    ai_error_code_value: Optional[str] = None
     try:
+        llm_client = resolve_llm_client(request, "individual")
         parsed_json = await _run_ai_review(llm_client, system_prompt, user_prompt)
     except HTTPException as e:
         ai_error = str(e.detail)
+        ai_error_code_value = ai_error_code(e)
     except Exception as e:  # noqa: BLE001 — any AI failure degrades, never 500s
         ai_error = f"The AI review failed: {e}"
     if ai_error:
@@ -435,6 +371,7 @@ Return a valid JSON object:
         "analysis_mode": "job_match" if is_job_match else "general",
         "ai_review_available": ai_error is None,
         "ai_review_error": ai_error,
+        "ai_review_error_code": ai_error_code_value,
         "scores": {
             "deterministic_rule_score": deterministic_rule_score,
             "ai_review_score": ai_review_score,
@@ -471,14 +408,8 @@ Return a valid JSON object:
 
 
 @app.post("/api/improve")
-async def improve_text(req: ImproveRequest, _: None = Depends(rate_limit_improve)):
-    api_key, model = get_openrouter_config()
-    llm_client = LLMClient.from_env(api_key, model)
-    if llm_client is None:
-        raise HTTPException(
-            status_code=500,
-            detail="OPENROUTER_API_KEY is not configured.",
-        )
+async def improve_text(request: Request, req: ImproveRequest, _: None = Depends(rate_limit_improve)):
+    llm_client = resolve_llm_client(request, "individual")
 
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="Text to improve cannot be empty.")
@@ -580,6 +511,7 @@ async def improve_text(req: ImproveRequest, _: None = Depends(rate_limit_improve
 
 @app.post("/api/ats/optimize")
 async def ats_optimize_resume(
+    request: Request,
     resume: UploadFile = File(...),
     _: None = Depends(rate_limit_ats),
 ):
@@ -602,17 +534,8 @@ async def ats_optimize_resume(
     file_bytes = await resume.read()
     _validate_resume_upload(resume, file_bytes)
 
-    api_key, model = get_openrouter_config()
-    llm_client = LLMClient.from_env(api_key, model)
-    if llm_client is None:
-        raise HTTPException(
-            status_code=500,
-            detail="OPENROUTER_API_KEY is not configured on the backend server. "
-            "Please verify the .env configuration.",
-        )
-
-    extracted_text, embedded_links, page_count = _extract_resume_text(
-        file_bytes, resume.filename
+    extracted_text, embedded_links, page_count = await run_in_threadpool(
+        _extract_resume_text, file_bytes, resume.filename
     )
 
     if not extracted_text.strip():
@@ -623,28 +546,169 @@ async def ats_optimize_resume(
             "Please upload a text-based PDF or DOCX.",
         )
 
-    # Augment text with embedded hyperlinks so the LLM sees both
-    llm_text = extracted_text
-    if embedded_links:
-        unique_urls = list(dict.fromkeys(link["url"] for link in embedded_links))
-        links_block = "\n".join(f"  [Embedded Hyperlink] {url}" for url in unique_urls)
-        llm_text += (
-            f"\n\n--- EMBEDDED DOCUMENT HYPERLINKS (clickable links in the resume) ---\n"
-            f"{links_block}\n"
-            f"--- END EMBEDDED HYPERLINKS ---\n\n"
-            "Note: Where the visible text link and an embedded hyperlink disagree, "
-            "the embedded hyperlink is more reliable. Prefer it."
-        )
-
-    # Run ATS optimization
-    result = await run_ats_optimization(
-        extracted_text=llm_text,
-        llm_client=llm_client,
+    # Deterministic parse first; the AI layer (individual plan: server keys,
+    # then the user's key) reviews it. Without AI the draft is returned.
+    result = await import_resume(
+        extracted_text,
+        embedded_links,
+        lambda: resolve_llm_client(request, "individual"),
     )
 
     logger.info(
-        "[ATS-ENDPOINT] Optimization complete | sections=%s",
-        [k for k, v in result.items() if v],
+        "[ATS-ENDPOINT] Import complete | ai_review=%s | sections=%s",
+        result["import_meta"]["ai_review"],
+        [k for k, v in result.items() if v and k != "import_meta"],
     )
 
     return result
+
+
+# -------------------------------------------------------------------
+# ResumeForge for Businesses — bulk screening
+#
+#   /api/business/requirements  JD → structured requirements (AI, once per queue)
+#   /api/business/screen        one resume × requirements → score (no AI)
+#   /api/business/summary       one candidate → one-sentence AI take (AI, per resume)
+#   /api/business/brief         one candidate → written brief (AI, on demand)
+#
+# Nothing is stored server-side; the browser holds every queue.
+# -------------------------------------------------------------------
+
+
+@app.post("/api/business/requirements")
+async def business_requirements(
+    request: Request,
+    req: RequirementsRequest,
+    _: None = Depends(rate_limit_requirements),
+):
+    """Extract the requirements every resume in a queue is scored against."""
+    llm_client = resolve_llm_client(request, "business")
+    try:
+        parsed = await _run_ai_review(
+            llm_client,
+            screening_service.REQUIREMENTS_SYSTEM_PROMPT,
+            screening_service.build_requirements_prompt(req.job_description.strip()),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    requirements = screening_service.clean_requirements(parsed)
+    if not any(requirements[k] for k in ("required_skills", "preferred_skills", "domain_keywords", "responsibilities")):
+        raise HTTPException(
+            status_code=422,
+            detail="No requirements could be found in that job description. "
+            "Paste the full posting, including its qualifications.",
+        )
+    return {"jd_requirements": requirements}
+
+
+@app.post("/api/business/screen")
+async def business_screen(
+    resume: UploadFile = File(...),
+    jd_requirements: str = Form(...),
+    _: None = Depends(rate_limit_screen),
+):
+    """Score one resume deterministically against a queue's requirements."""
+    try:
+        requirements = JDRequirements.model_validate_json(jd_requirements).model_dump()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid job requirements payload.") from exc
+
+    file_bytes = await resume.read()
+    _validate_resume_upload(resume, file_bytes)
+
+    # Extraction and scoring are CPU-bound; keep them off the event loop so
+    # parallel queues don't serialise behind one another.
+    def run() -> Dict[str, Any]:
+        text, _, _ = _extract_resume_text(file_bytes, resume.filename)
+        text = text.strip()
+        if not text:
+            raise HTTPException(
+                status_code=400,
+                detail="No text could be extracted — the file may be scanned or image-based.",
+            )
+        result = screening_service.screen_resume(text, requirements)
+        result["resume_text"] = text
+        return result
+
+    return await run_in_threadpool(run)
+
+
+@app.post("/api/business/summary")
+async def business_summary(
+    request: Request,
+    req: CandidateSummaryRequest,
+    _: None = Depends(rate_limit_summary),
+):
+    """One-sentence AI take on one screened candidate (the table's summary column)."""
+    llm_client = resolve_llm_client(request, "business")
+    try:
+        parsed = await _run_ai_review(
+            llm_client,
+            screening_service.SUMMARY_SYSTEM_PROMPT,
+            screening_service.build_summary_prompt(
+                req.resume_text,
+                req.job_description,
+                req.jd_requirements.model_dump(),
+                req.match_score,
+                req.missing_keywords,
+            ),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    summary = screening_service.clean_summary(parsed)
+    if not summary["summary"]:
+        raise HTTPException(status_code=502, detail="The AI returned an empty summary. Please try again.")
+    return summary
+
+
+@app.post("/api/business/brief")
+async def business_brief(
+    request: Request,
+    req: CandidateBriefRequest,
+    _: None = Depends(rate_limit_brief),
+):
+    """Write a short, evidence-grounded brief for one candidate."""
+    llm_client = resolve_llm_client(request, "business")
+    try:
+        parsed = await _run_ai_review(
+            llm_client,
+            screening_service.BRIEF_SYSTEM_PROMPT,
+            screening_service.build_brief_prompt(
+                req.resume_text,
+                req.job_description,
+                req.jd_requirements.model_dump(),
+                req.match_score,
+                req.missing_keywords,
+            ),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    brief = screening_service.clean_brief(parsed)
+    # A strength must be backed by the resume: drop any that cite numbers or
+    # technologies the resume doesn't contain. (Gaps legitimately name missing skills.)
+    brief["strengths"] = [
+        s for s in brief["strengths"] if validate_generated_claims(req.resume_text, s)
+    ]
+    if not brief["summary"]:
+        raise HTTPException(status_code=502, detail="The AI returned an empty brief. Please try again.")
+    return brief
+
+
+# -------------------------------------------------------------------
+# /api/ai/key-check — verify a user's own key (BYOK) before relying on it
+# -------------------------------------------------------------------
+
+
+@app.post("/api/ai/key-check")
+async def ai_key_check(request: Request, _: None = Depends(rate_limit_key_check)):
+    """Send a tiny request with the user's key so AI settings can confirm it works."""
+    target = byok_target_from_request(request)
+    if target is None:
+        raise HTTPException(status_code=400, detail="No API key was provided.", headers={AI_ERROR_HEADER: "byok_required"})
+    await LLMClient([target]).chat_completion(
+        "Reply with the single word OK.", "Say OK.", temperature=0
+    )
+    return {"ok": True, "provider": target.provider, "model": target.model}

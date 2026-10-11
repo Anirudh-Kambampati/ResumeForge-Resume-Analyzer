@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { uploadAndParseResume } from "@/lib/atsImport";
+import { uploadAndParseResume, type ImportMeta } from "@/lib/atsImport";
 import { useResumeStore } from "@/store/resumeStore";
 import type { Resume } from "@/types/resume";
 
@@ -35,6 +35,8 @@ export interface UseResumeImportReturn {
   errorMessage: string;
   /** Name of the file currently being / that was imported */
   fileName: string;
+  /** How the last successful import was produced (AI-reviewed or rule-based) */
+  importMeta: ImportMeta | null;
   /** Human label of accepted formats ("PDF or DOCX") */
   formatsLabel: string;
   /** Validate a File and start the import pipeline.
@@ -80,6 +82,7 @@ export function useResumeImport(): UseResumeImportReturn {
   const [status, setStatus] = useState<ImportStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [fileName, setFileName] = useState("");
+  const [importMeta, setImportMeta] = useState<ImportMeta | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -98,15 +101,17 @@ export function useResumeImport(): UseResumeImportReturn {
       setFileName(file.name);
       setStatus("loading");
       setErrorMessage("");
+      setImportMeta(null);
 
       abortRef.current = new AbortController();
 
       try {
-        const resume = await uploadAndParseResume(
+        const { resume, meta } = await uploadAndParseResume(
           file,
           abortRef.current.signal,
         );
         setResume(resume);
+        setImportMeta(meta);
         setStatus("success");
         return resume;
       } catch (err: unknown) {
@@ -138,6 +143,7 @@ export function useResumeImport(): UseResumeImportReturn {
     setStatus("idle");
     setErrorMessage("");
     setFileName("");
+    setImportMeta(null);
   }, []);
 
   const handleFileInputChange = useCallback(
@@ -154,6 +160,7 @@ export function useResumeImport(): UseResumeImportReturn {
     status,
     errorMessage,
     fileName,
+    importMeta,
     formatsLabel: SUPPORTED_FORMATS_LABEL,
     importFile,
     cancel,

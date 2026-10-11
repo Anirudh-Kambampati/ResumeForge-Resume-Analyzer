@@ -1,0 +1,44 @@
+JANE SMITH
+Product Designer | UX Researcher
+Brooklyn, NY • (917) 555-0142 • jane.smith@gmail.com • linkedin.com/in/janesmith • janesmith.design
+
+SUMMARY
+Product designer with 6 years of experience shipping consumer apps.
+
+WORK EXPERIENCE
+Spotify — New York, NY
+Senior Product Designer                                  Mar 2021 – Present
+• Led redesign of the playlist editor, increasing weekly edits by 18%.
+• Partnered with 4 engineering squads to ship a shared design system used
+across 30+ surfaces.
+Airbnb
+Product Designer, Jun 2018 - Feb 2021
+• Designed host onboarding flows.
+
+PROJECTS
+Habit Tracker | Figma, React Native
+• Designed and built a habit tracking app with 2k downloads.
+Portfolio Site (Next.js, Tailwind)
+github.com/janesmith/portfolio
+• Personal portfolio.
+
+EDUCATION
+Rhode Island School of Design
+Bachelor of Fine Arts in Graphic Design, 2014 - 2018
+GPA: 3.8/4.0
+
+SKILLS
+Design: Figma, Sketch, Adobe XD, Prototyping
+Research: Usability Testing, Interviews
+
+CERTIFICATIONS
+• Google UX Design Certificate - Coursera (2020)
+• Certified Scrum Master by Scrum Alliance, 2019
+
+AWARDS
+• Red Dot Design Award 2022
+• Employee of the quarter, Q3
+2021
+
+LANGUAGES
+English (Native), Spanish (Professional)

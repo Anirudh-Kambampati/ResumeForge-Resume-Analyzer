@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { useResumeImport, RESUME_ACCEPT_ATTRIBUTE } from "@/lib/useResumeImport";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import AiKeyButton from "@/components/ai/AiKeyButton";
+import UseOwnKeyLink from "@/components/ai/UseOwnKeyLink";
 
 // ============================================================
 // Component
@@ -24,6 +26,7 @@ export default function ImportPage() {
     status,
     errorMessage,
     fileName,
+    importMeta,
     importFile,
     cancel,
     reset,
@@ -33,13 +36,16 @@ export default function ImportPage() {
 
   const [dragOver, setDragOver] = useState(false);
 
+  // Rule-based import (AI review unavailable or rejected): let the user read why first
+  const aiReviewed = !importMeta || importMeta.ai_review === "applied";
+
   // Navigate to builder on success
   useEffect(() => {
-    if (status === "success") {
+    if (status === "success" && aiReviewed) {
       const timer = setTimeout(() => router.push("/builder"), 1200);
       return () => clearTimeout(timer);
     }
-  }, [status, router]);
+  }, [status, router, aiReviewed]);
 
   // Cleanup in-flight requests on unmount
   useEffect(() => {
@@ -77,10 +83,12 @@ export default function ImportPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-app px-6">
-      <ThemeToggle className="fixed right-6 top-6 z-20" />
+      <div className="fixed right-6 top-6 z-20 flex items-center gap-2">
+        <AiKeyButton />
+        <ThemeToggle />
+      </div>
       {/* Background glow */}
       <div className="pointer-events-none fixed inset-0 z-0">
-        <div className="absolute left-1/2 top-1/3 -z-10 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600/10 blur-[140px]" />
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-xl">
@@ -94,13 +102,13 @@ export default function ImportPage() {
         </Link>
 
         {/* Card */}
-        <div className="rounded-3xl border border-white/[0.06] bg-panel p-8 sm:p-10 shadow-xl shadow-black/40">
+        <div className="rf-card rounded-3xl p-8 shadow-[6px_6px_0_var(--shadow-color)] sm:p-10">
           {/* Header */}
           <div className="mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.02]">
+            <div className="mx-auto mb-4 flex h-14 w-14 -rotate-3 items-center justify-center rounded-2xl border-2 border-line bg-marker text-[#1f1b16] shadow-[3px_3px_0_var(--shadow-color)]">
               <Upload size={24} className="text-blue-400" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            <h1 className="font-serif text-4xl font-normal text-white sm:text-5xl">
               Import Resume
             </h1>
             <p className="mt-2 text-sm leading-6 text-zinc-500">
@@ -139,7 +147,7 @@ export default function ImportPage() {
                     ${
                       dragOver
                         ? "border-blue-500 bg-blue-500/5"
-                        : "border-white/[0.08] bg-white/[0.02] hover:border-blue-500/40 hover:bg-white/[0.04]"
+                        : "border-line bg-panel hover:bg-marker/15"
                     }
                   `}
                 >
@@ -184,7 +192,7 @@ export default function ImportPage() {
                     "Redirects to the builder for further editing",
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-2.5">
-                      <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500/50" />
+                      <span className="mt-1.5 h-2 w-2 shrink-0 rotate-45 bg-pencil" />
                       {item}
                     </li>
                   ))}
@@ -203,13 +211,13 @@ export default function ImportPage() {
               >
                 {/* Animated spinner */}
                 <div className="relative mb-6">
-                  <div className="h-20 w-20 animate-spin rounded-full border-[3px] border-white/[0.06] border-t-blue-500" />
+                  <div className="h-20 w-20 animate-spin rounded-full border-4 border-zinc-800 border-t-pencil" />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <FileText size={24} className="text-blue-400" />
                   </div>
                 </div>
 
-                <p className="text-base font-medium text-zinc-200">
+                <p className="text-base font-bold text-zinc-200">
                   {fileName}
                 </p>
                 <p className="mt-1 text-sm text-zinc-500">
@@ -218,7 +226,7 @@ export default function ImportPage() {
 
                 {/* Indeterminate progress bar */}
                 <div className="mt-6 h-1 w-full max-w-[200px] overflow-hidden rounded-full bg-white/[0.06]">
-                  <div className="h-full w-full origin-left animate-[import-progress_2s_ease-in-out_infinite] rounded-full bg-blue-500" />
+                  <div className="h-full w-full origin-left animate-[import-progress_2s_ease-in-out_infinite] rounded-full bg-marker" />
                 </div>
 
                 <button
@@ -242,15 +250,48 @@ export default function ImportPage() {
                 <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
                   <CheckCircle2 size={36} className="text-green-400" />
                 </div>
-                <p className="text-base font-medium text-zinc-200">
+                <p className="text-base font-bold text-zinc-200">
                   {fileName}
                 </p>
                 <p className="mt-1 text-sm text-green-400">
                   Resume parsed successfully!
                 </p>
-                <p className="mt-1 text-sm text-zinc-600">
-                  Redirecting to builder…
-                </p>
+                {aiReviewed ? (
+                  <p className="mt-1 text-sm text-zinc-600">
+                    Redirecting to builder…
+                  </p>
+                ) : (
+                  <div className="mt-5 w-full space-y-4">
+                    <div className="rf-note -rotate-[0.5deg] px-4 py-3 text-left text-sm leading-relaxed">
+                      <p>
+                        Imported with the rule-based parser only.{" "}
+                        {importMeta?.message ?? "The AI review didn't run."} Check the sections in the builder.
+                      </p>
+                      {importMeta?.error_code && (
+                        <UseOwnKeyLink className="mt-2 text-xs" />
+                      )}
+                    </div>
+                    <div className="flex justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => router.push("/builder")}
+                        className="rf-btn rf-btn-primary px-5 text-sm"
+                      >
+                        Continue to builder
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          reset();
+                          inputRef.current?.click();
+                        }}
+                        className="rf-btn px-5 text-sm"
+                      >
+                        Import again
+                      </button>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -266,7 +307,7 @@ export default function ImportPage() {
                 <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-red-500/10">
                   <AlertCircle size={36} className="text-red-400" />
                 </div>
-                <p className="text-base font-medium text-zinc-200">
+                <p className="text-base font-bold text-zinc-200">
                   Import failed
                 </p>
                 <p className="mt-2 max-w-sm text-center text-sm text-red-300">
@@ -274,7 +315,7 @@ export default function ImportPage() {
                 </p>
                 <button
                   onClick={reset}
-                  className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-2.5 text-sm font-medium text-zinc-300 transition-all hover:border-blue-500/30 hover:bg-white/[0.06] hover:text-white"
+                  className="rf-btn mt-6 px-5 text-sm"
                 >
                   Try again
                 </button>

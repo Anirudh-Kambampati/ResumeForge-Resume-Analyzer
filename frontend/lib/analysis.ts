@@ -26,6 +26,8 @@ export interface AnalysisResult {
   /** false when the AI review failed and only rule-based results are included */
   ai_review_available?: boolean;
   ai_review_error?: string | null;
+  /** Backend X-AI-Error code, e.g. "server_exhausted" when free AI capacity is used up */
+  ai_review_error_code?: string | null;
   scores: {
     deterministic_rule_score: number;
     ai_review_score: number | null;

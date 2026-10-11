@@ -14,6 +14,7 @@ Key design constraints:
   - Stage-level logging for traceability
 """
 
+import json
 import logging
 import re
 from typing import Any, Dict, List, Optional
@@ -291,131 +292,16 @@ def _reorder_sections(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # ============================================================
-# Main entry point
+# Stage 4 — post-processing (shared with the deterministic parser)
 # ============================================================
 
 
-async def run_ats_optimization(
-    extracted_text: str,
-    llm_client: LLMClient,
-    max_retries: int = 1,
-) -> Dict[str, Any]:
-    """Run the ATS optimization pipeline on extracted resume text.
+def postprocess_resume_data(parsed_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Stage 4: clean and normalize parsed resume data into the frontend schema.
 
-    Args:
-        extracted_text: The cleaned text from PDF extraction.
-        llm_client: Configured LLMClient instance.
-        max_retries: Number of times to retry on validation failure.
-
-    Returns:
-        Dict with structured resume data matching the frontend Resume type
-        (without builder concerns: id, enabled, template, layout, sectionOrder).
-
-    Raises:
-        HTTPException: With detailed error message on failure.
+    Shared by the AI layer and the deterministic import parser so both
+    produce identically shaped, identically cleaned output.
     """
-    if not extracted_text.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot optimize empty resume text.",
-        )
-
-    if llm_client is None:
-        raise HTTPException(
-            status_code=500,
-            detail="AI service is not configured. Cannot perform ATS optimization.",
-        )
-
-    logger.info(
-        "[ATS] Starting ATS optimization | text_chars=%d",
-        len(extracted_text),
-    )
-
-    # ============================================================
-    # Stage 1: Build ATS-optimized prompts
-    # ============================================================
-    prompts = build_ats_prompts(extracted_text)
-    logger.info(
-        "[ATS] Stage 1 (PROMPT) built | system=%d chars | user=%d chars",
-        len(prompts["system"]),
-        len(prompts["user"]),
-    )
-
-    # ============================================================
-    # Stage 2: LLM call with optional retry
-    # ============================================================
-    raw_output = ""
-    parsed_data: Dict[str, Any] = {}
-    parse_error: Optional[Exception] = None
-
-    for attempt in range(max_retries + 1):
-        if attempt == 0:
-            logger.info("[ATS] Stage 2 (LLM) — initial request | attempt=%d", attempt + 1)
-            try:
-                raw_output = await llm_client.chat_completion(
-                    prompts["system"],
-                    prompts["user"],
-                    temperature=0.15,  # Low temp for deterministic extraction
-                )
-            except HTTPException:
-                raise
-        else:
-            logger.warning(
-                "[ATS] Stage 2 (LLM) — repair retry | attempt=%d",
-                attempt + 1,
-            )
-            repair_prompt = (
-                f"ERROR: {parse_error}\n\n"
-                f"INVALID OUTPUT:\n{raw_output}\n\n"
-                "Fix this JSON. Return ONLY valid JSON. "
-                "Do NOT change the data, only fix formatting issues."
-            )
-            try:
-                raw_output = await llm_client.chat_completion(
-                    "You are a JSON correction assistant. Output ONLY valid JSON — no markdown, no explanations.",
-                    repair_prompt,
-                    temperature=0.1,
-                )
-            except HTTPException:
-                raise
-
-        # ============================================================
-        # Stage 3: JSON parsing
-        # ============================================================
-        try:
-            parsed_data = clean_and_parse_json(raw_output)
-            parse_error = None
-        except ValueError as exc:
-            parse_error = exc
-            logger.error(
-                "[ATS] Stage 3 (PARSE) failed | attempt=%d | error=%s",
-                attempt + 1,
-                str(exc),
-            )
-            if attempt < max_retries:
-                continue
-            raise HTTPException(
-                status_code=502,
-                detail=f"ATS optimization failed: AI model returned invalid JSON. {exc}",
-            ) from exc
-
-        # Validate root structure
-        if not isinstance(parsed_data, dict):
-            parse_error = ValueError("Root value is not a JSON object.")
-            if attempt < max_retries:
-                continue
-            raise HTTPException(
-                status_code=502,
-                detail="ATS optimization failed: AI model returned a non-object value.",
-            )
-
-        # If we got here, parsing succeeded
-        break
-
-    # ============================================================
-    # Stage 4: Post-processing and cleanup
-    # ============================================================
-    logger.info("[ATS] Stage 4 (POST-PROCESS) — cleaning and normalizing")
 
     # Profile
     if "profile" in parsed_data and isinstance(parsed_data["profile"], dict):
@@ -503,6 +389,156 @@ async def run_ats_optimization(
     # Strip builder-only fields if LLM hallucinated them
     BUILDER_FIELDS = {"id", "enabled", "template", "layout", "sectionOrder", "customSections"}
     parsed_data = {k: v for k, v in parsed_data.items() if k not in BUILDER_FIELDS}
+
+    return parsed_data
+
+
+def _build_draft_review_block(draft: Dict[str, Any]) -> str:
+    return (
+        "\n\nDETERMINISTIC DRAFT (rule-based parse of the same text):\n"
+        f"{json.dumps(draft, ensure_ascii=False)}\n\n"
+        "REVIEW INSTRUCTIONS:\n"
+        "- Treat the draft as a starting point and correct it against the RESUME TEXT.\n"
+        "- Fix misassigned fields (role vs company, degree vs institution, location), wrongly split or "
+        "merged entries, wrapped bullets, and skills placed in the wrong category.\n"
+        "- Add anything the draft missed that IS in the resume text; drop anything not in the text.\n"
+        "- Keep wording verbatim. Never add facts, numbers, technologies or titles.\n"
+        "- Return the full corrected resume in the schema above, not a diff."
+    )
+
+
+# ============================================================
+# Main entry point
+# ============================================================
+
+
+async def run_ats_optimization(
+    extracted_text: str,
+    llm_client: LLMClient,
+    max_retries: int = 1,
+    draft: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Run the ATS optimization pipeline on extracted resume text.
+
+    Args:
+        extracted_text: The cleaned text from PDF extraction.
+        llm_client: Configured LLMClient instance.
+        max_retries: Number of times to retry on validation failure.
+
+    Returns:
+        Dict with structured resume data matching the frontend Resume type
+        (without builder concerns: id, enabled, template, layout, sectionOrder).
+
+    Raises:
+        HTTPException: With detailed error message on failure.
+    """
+    if not extracted_text.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot optimize empty resume text.",
+        )
+
+    if llm_client is None:
+        raise HTTPException(
+            status_code=500,
+            detail="AI service is not configured. Cannot perform ATS optimization.",
+        )
+
+    logger.info(
+        "[ATS] Starting ATS optimization | text_chars=%d",
+        len(extracted_text),
+    )
+
+    # ============================================================
+    # Stage 1: Build ATS-optimized prompts
+    # ============================================================
+    prompts = build_ats_prompts(extracted_text)
+    if draft is not None:
+        # Review mode: the deterministic parser's draft is a starting point to
+        # check and correct against the text, not a source of new content.
+        prompts["user"] += _build_draft_review_block(draft)
+    logger.info(
+        "[ATS] Stage 1 (PROMPT) built | system=%d chars | user=%d chars",
+        len(prompts["system"]),
+        len(prompts["user"]),
+    )
+
+    # ============================================================
+    # Stage 2: LLM call with optional retry
+    # ============================================================
+    raw_output = ""
+    parsed_data: Dict[str, Any] = {}
+    parse_error: Optional[Exception] = None
+
+    for attempt in range(max_retries + 1):
+        if attempt == 0:
+            logger.info("[ATS] Stage 2 (LLM) — initial request | attempt=%d", attempt + 1)
+            try:
+                raw_output = await llm_client.chat_completion(
+                    prompts["system"],
+                    prompts["user"],
+                    temperature=0.15,  # Low temp for deterministic extraction
+                )
+            except HTTPException:
+                raise
+        else:
+            logger.warning(
+                "[ATS] Stage 2 (LLM) — repair retry | attempt=%d",
+                attempt + 1,
+            )
+            repair_prompt = (
+                f"ERROR: {parse_error}\n\n"
+                f"INVALID OUTPUT:\n{raw_output}\n\n"
+                "Fix this JSON. Return ONLY valid JSON. "
+                "Do NOT change the data, only fix formatting issues."
+            )
+            try:
+                raw_output = await llm_client.chat_completion(
+                    "You are a JSON correction assistant. Output ONLY valid JSON — no markdown, no explanations.",
+                    repair_prompt,
+                    temperature=0.1,
+                )
+            except HTTPException:
+                raise
+
+        # ============================================================
+        # Stage 3: JSON parsing
+        # ============================================================
+        try:
+            parsed_data = clean_and_parse_json(raw_output)
+            parse_error = None
+        except ValueError as exc:
+            parse_error = exc
+            logger.error(
+                "[ATS] Stage 3 (PARSE) failed | attempt=%d | error=%s",
+                attempt + 1,
+                str(exc),
+            )
+            if attempt < max_retries:
+                continue
+            raise HTTPException(
+                status_code=502,
+                detail=f"ATS optimization failed: AI model returned invalid JSON. {exc}",
+            ) from exc
+
+        # Validate root structure
+        if not isinstance(parsed_data, dict):
+            parse_error = ValueError("Root value is not a JSON object.")
+            if attempt < max_retries:
+                continue
+            raise HTTPException(
+                status_code=502,
+                detail="ATS optimization failed: AI model returned a non-object value.",
+            )
+
+        # If we got here, parsing succeeded
+        break
+
+    # ============================================================
+    # Stage 4: Post-processing and cleanup
+    # ============================================================
+    logger.info("[ATS] Stage 4 (POST-PROCESS) — cleaning and normalizing")
+    parsed_data = postprocess_resume_data(parsed_data)
 
     logger.info(
         "[ATS] Optimization complete | sections=%s",

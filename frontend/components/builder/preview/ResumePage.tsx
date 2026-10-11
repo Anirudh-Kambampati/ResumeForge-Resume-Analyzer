@@ -55,7 +55,7 @@ type Props = {
 export default function ResumePage({ resume, selectedSection, compressLevel }: Props) {
   const highlight = (section: BuilderSection) =>
     selectedSection === section
-      ? "ring-2 ring-blue-500/40 rounded-sm transition-all duration-200 print:ring-0 print:outline-none"
+      ? "ring-2 ring-marker rounded-sm transition-all duration-200 print:ring-0 print:outline-none"
       : "";
 
   // Auto-fit: find the optimal compress level if not provided externally

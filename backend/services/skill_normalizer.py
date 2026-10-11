@@ -159,6 +159,28 @@ _KEEP_ACRONYMS: Set[str] = {
     "sqlalchemy",
 }
 
+# Product names written in camelCase that must not be split
+# ("JavaScript" must not become "Java Script").
+_KEEP_COMPOUND_NAMES: Set[str] = {
+    "javascript", "typescript", "coffeescript", "actionscript",
+    "github", "gitlab", "bitbucket", "gitops",
+    "postgresql", "mysql", "mongodb", "mariadb", "dynamodb", "couchdb",
+    "cockroachdb", "influxdb", "sqlite", "bigquery", "graphql", "nosql",
+    "fastapi", "nodejs", "nextjs", "nestjs", "nuxtjs", "vuejs", "reactjs",
+    "angularjs", "expressjs", "jquery", "rxjs", "mobx", "typeorm", "postcss",
+    "tensorflow", "pytorch", "numpy", "scipy", "pyspark", "pytest", "opencv",
+    "openai", "langchain", "llamaindex", "chatgpt", "opengl", "directx",
+    "powershell", "powerpoint", "wordpress", "sharepoint", "youtube", "linkedin",
+    "circleci", "travisci", "sonarqube", "rabbitmq", "zeromq", "activemq",
+    "openshift", "cloudformation", "cloudfront", "cloudwatch",
+    "websocket", "websockets", "webrtc", "webassembly", "webpack",
+    "junit", "testng", "phpunit", "intellij", "pycharm", "vscode", "xcode",
+    "swiftui", "uikit", "coredata", "jetbrains", "labview", "autocad",
+    "solidworks", "quickbooks", "hubspot", "mailchimp", "clickup", "servicenow",
+    "netsuite", "codeigniter", "leetcode", "hackerrank", "codechef",
+    "geeksforgeeks", "ios", "macos", "latex",
+}
+
 # ============================================================
 # Normalization logic
 # ============================================================
@@ -171,7 +193,7 @@ def _protect_acronyms(text: str) -> str:
     E.g. 'LLMs' → 'L\x00L\x00M\x00s'  (the null bytes block the regex.)
     After splitting, _restore_acronyms removes the null bytes.
     """
-    for acronym in sorted(_KEEP_ACRONYMS, key=len, reverse=True):
+    for acronym in sorted(_KEEP_ACRONYMS | _KEEP_COMPOUND_NAMES, key=len, reverse=True):
         # The default-argument trick captures `acronym`'s current value
         # into the closure so each iteration gets its own binding.
         def replacer(m):

@@ -12,9 +12,10 @@ Design notes:
     worker enforces its own window (worst case: N× the nominal limit).
   - Rate-limit state is intentionally decoupled from auth: a valid key does
     not bypass the limit — both apply.
-  - Client IP resolution checks X-Forwarded-For first (required when running
-    behind a proxy such as Vercel -> Fly/Render), falling back to the direct
-    peer address.
+  - Client IP resolution honors X-Forwarded-For only when TRUST_PROXY is
+    enabled (required when running behind a proxy such as Vercel -> Fly/Render,
+    and dangerous when the API is exposed directly — the header is spoofable).
+    Default is on, matching the documented proxy deployment.
 """
 
 import hashlib
@@ -72,18 +73,32 @@ class SlidingWindowRateLimiter:
         window.append(now)
 
 
+def _trust_proxy() -> bool:
+    """Whether X-Forwarded-For may be trusted when resolving the client IP.
+
+    Set TRUST_PROXY=0 when the API is exposed directly (a client can otherwise
+    spoof the header and rotate its rate-limit identity). Keep the default on
+    for the documented proxy deployments that set the header for us.
+    """
+    return os.getenv("TRUST_PROXY", "1").strip().lower() not in {"0", "false", "no"}
+
+
 def get_client_ip(request: Request) -> str:
-    """Resolve the client IP, honoring X-Forwarded-For when proxied."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        # First hop in the list is the original client
-        first = forwarded.split(",")[0].strip()
-        if first:
-            return first
+    """Resolve the client IP for rate limiting.
+
+    Honors the first X-Forwarded-For hop only when TRUST_PROXY allows it;
+    otherwise uses the direct peer address, which a client cannot fake.
+    """
+    if _trust_proxy():
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            # First hop in the list is the original client
+            first = forwarded.split(",")[0].strip()
+            if first:
+                return first
     if request.client and request.client.host:
         return request.client.host
     return "unknown"
-
 
 # ============================================================
 # Shared-secret API key (optional)

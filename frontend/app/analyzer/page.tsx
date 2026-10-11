@@ -14,8 +14,11 @@ import {
   Info
 } from "lucide-react";
 import { normalizeError } from "@/lib/errorHelper";
-import { API_BASE_URL, apiHeaders, toApiError } from "@/lib/api";
+import { API_BASE_URL, ApiError, apiHeaders, toApiError } from "@/lib/api";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import AiKeyButton from "@/components/ai/AiKeyButton";
+import UseOwnKeyLink from "@/components/ai/UseOwnKeyLink";
+import ImprovedBullets from "@/components/analyzer/ImprovedBullets";
 import { isSupportedResumeFile, RESUME_ACCEPT_ATTRIBUTE } from "@/lib/useResumeImport";
 
 interface Suggestion {
@@ -41,6 +44,7 @@ interface AnalysisData {
   analysis_mode: "general" | "job_match";
   ai_review_available?: boolean;
   ai_review_error?: string | null;
+  ai_review_error_code?: string | null;
   scores: AnalysisScores;
   score_gap_insight: string;
   rule_breakdown: Record<string, BreakdownItem>;
@@ -66,6 +70,8 @@ export default function AnalyzerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisData | null>(null);
+  // Bumped per analysis so applied rewrites from a previous run are discarded
+  const [runId, setRunId] = useState(0);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -134,12 +140,24 @@ export default function AnalyzerPage() {
 
       const data = await response.json();
       setResult(data);
+      setRunId((n) => n + 1);
     } catch (e: unknown) {
       console.error(e);
       let errMsg = "An unexpected error occurred during analysis.";
-      if (e instanceof Error) {
-        if (e.name === "TypeError" && (e.message.toLowerCase().includes("fetch") || e.message.toLowerCase().includes("network"))) {
-          errMsg = "Could not connect to the ResumeForge analysis server. Make sure the backend is running.";
+      if (e instanceof ApiError) {
+        // Server answered with a typed failure; trust its message and code.
+        errMsg = e.message;
+        if (e.aiErrorCode === "byok_unavailable") {
+          errMsg = "Your AI provider didn't respond in time. Try again, or pick another provider in AI settings.";
+        } else if (e.status === 413) {
+          errMsg = "That resume is too long for analysis. Try a shorter file.";
+        }
+      } else if (e instanceof Error) {
+        if (e instanceof TypeError && (e.message.includes("fetch") || e.message.includes("NetworkError"))) {
+          // TypeError from fetch covers both "backend down" and "CORS/preflight
+          // blocked"; say both instead of guessing one.
+          errMsg =
+            "Could not reach the ResumeForge analysis server. Make sure the backend is running and this origin is allowed (CORS).";
         } else {
           errMsg = e.message;
         }
@@ -163,7 +181,7 @@ export default function AnalyzerPage() {
     <main id="analyzer-workspace" className="min-h-screen bg-app text-zinc-100 pb-20">
       
       {/* Header Bar */}
-      <header className="flex h-16 items-center justify-between border-b border-white/10 bg-app/80 backdrop-blur px-8 sticky top-0 z-50">
+      <header className="flex h-16 items-center justify-between border-b-2 border-line bg-app/95 backdrop-blur px-4 sm:px-8 sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <Link
             href="/"
@@ -172,29 +190,16 @@ export default function AnalyzerPage() {
             <ArrowLeft size={18} />
           </Link>
           <div>
-            <h2 className="text-lg font-bold tracking-tight">Resume Analyzer</h2>
+            <h2 className="font-serif text-[26px] font-normal leading-none">Resume Analyzer</h2>
             <p className="text-xs text-zinc-500">Scan compliance against job details</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <AiKeyButton />
           <ThemeToggle />
           <Link
             href="/builder"
-            className="
-              flex
-              items-center
-              gap-1.5
-              rounded-xl
-              border
-              border-white/10
-              bg-white/[0.03]
-              px-4
-              py-2
-              text-sm
-              font-medium
-              transition
-              hover:bg-white/[0.06]
-            "
+            className="rf-btn gap-1.5 px-3 text-sm sm:px-4"
           >
             Resume Builder
             <ArrowRight size={14} />
@@ -213,7 +218,7 @@ export default function AnalyzerPage() {
             <div className="space-y-6">
               
               {/* File Upload Block */}
-              <div className="bg-panel border border-white/10 rounded-2xl p-6">
+              <div className="rf-card p-6">
                 <h3 className="text-md font-semibold text-white mb-4">1. Upload Resume</h3>
                 
                 <div
@@ -266,7 +271,7 @@ export default function AnalyzerPage() {
               </div>
 
               {/* Job Description Block */}
-              <div className="bg-panel border border-white/10 rounded-2xl p-6">
+              <div className="rf-card p-6">
                 <h3 className="text-md font-semibold text-white mb-4">2. Paste Job Description</h3>
                 <textarea
                   value={jobDescription}
@@ -276,9 +281,9 @@ export default function AnalyzerPage() {
                   className="
                     w-full
                     rounded-xl
-                    border
-                    border-white/10
-                    bg-app
+                    border-2
+                    border-line
+                    bg-panel
                     px-4
                     py-3
                     text-sm
@@ -287,7 +292,7 @@ export default function AnalyzerPage() {
                     transition
                     focus:border-blue-500
                     focus:ring-2
-                    focus:ring-blue-500/20
+                    focus:ring-marker/70
                     resize-none
                   "
                 />
@@ -302,24 +307,7 @@ export default function AnalyzerPage() {
                 <button
                   onClick={handleAnalyze}
                   disabled={loading || !file}
-                  className="
-                    w-full
-                    flex
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-xl
-                    bg-blue-600
-                    py-3.5
-                    font-semibold
-                    text-on-accent
-                    transition
-                    hover:bg-blue-500
-                    disabled:opacity-40
-                    disabled:cursor-not-allowed
-                    shadow-lg
-                    shadow-blue-600/10
-                  "
+                  className="rf-btn rf-btn-primary w-full min-h-[52px] text-base"
                 >
                   {loading ? (
                     <>
@@ -347,7 +335,7 @@ export default function AnalyzerPage() {
             </div>
 
             {/* Right side instruction panel */}
-            <div className="rounded-2xl border border-white/10 bg-panel/50 p-6 space-y-6">
+            <div className="rf-card p-6 space-y-6">
               <h3 className="text-lg font-bold text-white">How it works</h3>
               <div className="space-y-4">
                 <Step
@@ -386,13 +374,13 @@ export default function AnalyzerPage() {
           <div className="space-y-8 animate-fade-in">
             
             {/* Top Score Banner */}
-            <div className="grid md:grid-cols-[1fr_2fr] items-center gap-6 bg-panel border border-white/10 rounded-2xl p-6">
+            <div className="grid md:grid-cols-[1fr_2fr] items-center gap-6 rf-card p-6">
               
               {/* Score displays */}
               <div className="flex flex-col gap-4 items-center justify-center border-r border-white/10 pr-6">
                 
                 <div className="text-center">
-                  <div className="text-4xl font-extrabold text-white">
+                  <div className="font-serif text-6xl font-normal text-white">
                     {result.scores.deterministic_rule_score} <span className="text-xl text-zinc-500">/ 100</span>
                   </div>
                   <span className="mt-1 text-xs uppercase tracking-wider font-semibold text-blue-500">
@@ -403,7 +391,7 @@ export default function AnalyzerPage() {
                 <div className="w-full h-px bg-white/10 my-2"></div>
                 
                 <div className="text-center">
-                  <div className="text-3xl font-extrabold text-white">
+                  <div className="font-serif text-5xl font-normal text-white">
                     {result.scores.ai_review_score ?? "—"} <span className="text-lg text-zinc-500">/ 100</span>
                   </div>
                   <span className="mt-1 text-[10px] uppercase tracking-wider font-semibold text-purple-400">
@@ -415,7 +403,7 @@ export default function AnalyzerPage() {
                   <>
                     <div className="w-full h-px bg-white/10 my-2"></div>
                     <div className="text-center">
-                      <div className="text-3xl font-extrabold text-green-400">
+                      <div className="font-serif text-5xl font-normal text-green-400">
                         {result.scores.job_match_score} <span className="text-lg text-green-400/50">/ 100</span>
                       </div>
                       <span className="mt-1 text-[10px] uppercase tracking-wider font-semibold text-green-500">
@@ -429,7 +417,7 @@ export default function AnalyzerPage() {
               {/* Summary details */}
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
-                  <h3 className="text-xl font-bold text-white">Resume Analysis</h3>
+                  <h3 className="font-serif text-4xl font-normal text-white">Resume Analysis</h3>
                   <button
                     onClick={handleReset}
                     className="
@@ -469,6 +457,9 @@ export default function AnalyzerPage() {
                       {result.ai_review_error || "The AI review could not be completed."} The rule-based ATS
                       score below is still accurate{result.analysis_mode === "job_match" ? "; job match needs the AI review, so try again shortly" : ""}.
                     </p>
+                    {result.ai_review_error_code && ["server_exhausted", "byok_invalid", "byok_exhausted", "byok_model"].includes(result.ai_review_error_code) && (
+                      <UseOwnKeyLink className="mt-3 text-xs" />
+                    )}
                   </div>
                 ) : (
                   <div className="bg-blue-500/5 border border-blue-500/20 p-4 rounded-xl">
@@ -506,14 +497,14 @@ export default function AnalyzerPage() {
                 
                 {/* Matched Keywords */}
                 {result.matched_keywords && result.matched_keywords.length > 0 && (
-                  <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-4">
+                  <div className="rf-card p-6 space-y-4">
                     <h4 className="text-sm font-bold text-green-400 flex items-center gap-1.5">
                       <CheckCircle2 size={16} />
                       Matched Keywords ({result.matched_keywords.length})
                     </h4>
                     <div className="flex flex-wrap gap-2">
                       {result.matched_keywords.map((kw) => (
-                        <span key={kw} className="bg-green-500/10 border border-green-500/20 text-green-400 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                        <span key={kw} className="rf-chip-found px-2.5 py-1 text-xs">
                           {kw}
                         </span>
                       ))}
@@ -523,14 +514,14 @@ export default function AnalyzerPage() {
 
                 {/* Missing Keywords */}
                 {result.missing_keywords && result.missing_keywords.length > 0 && (
-                  <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-4">
+                  <div className="rf-card p-6 space-y-4">
                     <h4 className="text-sm font-bold text-red-400 flex items-center gap-1.5">
                       <AlertTriangle size={16} />
                       Missing Job Keywords ({result.missing_keywords.length})
                     </h4>
                     <div className="flex flex-wrap gap-2">
                       {result.missing_keywords.map((kw) => (
-                        <span key={kw} className="bg-red-500/10 border border-red-500/20 text-red-400 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                        <span key={kw} className="rf-chip-missing px-2.5 py-1 text-xs">
                           {kw}
                         </span>
                       ))}
@@ -545,7 +536,7 @@ export default function AnalyzerPage() {
             <div className="grid md:grid-cols-2 gap-6">
               
               {/* Strengths list */}
-              <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-3">
+              <div className="rf-card p-6 space-y-3">
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Core Strengths</h4>
                 <ul className="space-y-2 text-sm">
                   {result.strengths.map((str, idx) => (
@@ -558,7 +549,7 @@ export default function AnalyzerPage() {
               </div>
 
               {/* Weaknesses list */}
-              <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-3">
+              <div className="rf-card p-6 space-y-3">
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Gaps & Weaknesses</h4>
                 <ul className="space-y-2 text-sm">
                   {result.weaknesses.map((weak, idx) => (
@@ -573,7 +564,7 @@ export default function AnalyzerPage() {
             </div>
 
             {/* Suggestions & Action Plan */}
-            <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-4">
+            <div className="rf-card p-6 space-y-4">
               <h4 className="text-sm font-bold text-white uppercase tracking-wider">Priority Suggestions</h4>
               <div className="grid md:grid-cols-3 gap-4">
                 {result.suggestions.map((sug, idx) => (
@@ -599,32 +590,14 @@ export default function AnalyzerPage() {
               </div>
             </div>
 
-            {/* AI Bullet points improvements */}
+            {/* AI rewrites: apply them and preview in the builder sidebar */}
             {result.improved_bullets && result.improved_bullets.length > 0 && (
-              <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-4">
-                <h4 className="text-sm font-bold text-white uppercase tracking-wider">Improved Bullet Recommendations</h4>
-                <div className="space-y-3">
-                  {result.improved_bullets.map((bullet, idx) => (
-                    <div key={idx} className="grid md:grid-cols-2 gap-4 bg-card/50 p-4 rounded-xl border border-white/5">
-                      <div className="space-y-1">
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Original</span>
-                        <p className="text-xs text-zinc-400 italic">"{bullet.original}"</p>
-                      </div>
-                      <div className="space-y-1 border-t md:border-t-0 md:border-l border-white/10 pt-3 md:pt-0 md:pl-4">
-                        <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                          <Sparkles size={10} /> Improved
-                        </span>
-                        <p className="text-xs text-zinc-200">"{bullet.improved}"</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <ImprovedBullets key={runId} file={file} bullets={result.improved_bullets} />
             )}
 
             {/* Interview focus suggestions */}
             {result.interview_focus && result.interview_focus.length > 0 && (
-              <div className="bg-panel border border-white/10 rounded-2xl p-6 space-y-3">
+              <div className="rf-card p-6 space-y-3">
                 <h4 className="text-sm font-bold text-white uppercase tracking-wider">Technical Interview Focus</h4>
                 <p className="text-xs text-zinc-500 font-sans">Prepare for these engineering topics based on requirements and gaps.</p>
                 <ul className="space-y-2 text-sm mt-3">
@@ -650,7 +623,7 @@ export default function AnalyzerPage() {
 function Step({ num, title, desc }: { num: number; title: string; desc: string }) {
   return (
     <div className="flex gap-4">
-      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600/10 text-blue-400 border border-blue-500/20 text-sm font-bold shrink-0">
+      <div className="flex items-center justify-center w-8 h-8 rounded-full border-2 border-line bg-marker text-[#1f1b16] font-serif text-lg shrink-0">
         {num}
       </div>
       <div>

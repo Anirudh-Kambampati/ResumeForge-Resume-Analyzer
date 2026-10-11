@@ -22,6 +22,7 @@ Stage-level logging:
 
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
@@ -51,6 +52,54 @@ OPENROUTER_TIMEOUT_SECONDS = 45.0
 MAX_COMPLETION_TOKENS = 4096
 
 
+# Response header naming why an AI call failed, for the frontend:
+#   server_exhausted  — ResumeForge's own keys are used up; a user key would help
+#   byok_required     — this feature needs the user's own key
+#   byok_invalid      — the user's key was rejected
+#   byok_exhausted    — the user's key is rate limited / out of credit
+#   byok_model        — the chosen model isn't available to that key
+#   byok_unavailable  — the user's provider timed out / is unreachable
+AI_ERROR_HEADER = "X-AI-Error"
+
+# Server failures that mean "out of capacity" rather than "bad request"
+BYOK_FALLBACK_STATUSES = {429, 500, 502, 503, 504}
+
+_OPTIONAL_PARAM_RE = re.compile(
+    r"temperature|response_format|reasoning_effort|max_tokens|max_completion_tokens|unsupported (?:parameter|value)",
+    re.I,
+)
+
+BYOK_PROVIDER_NAMES = {
+    "openai": "OpenAI",
+    "anthropic": "Anthropic",
+    "gemini": "Google Gemini",
+    "groq": "Groq",
+    "openrouter": "OpenRouter",
+}
+
+
+def _map_byok_error(target: "LLMTarget", status_code: int, err_msg: str) -> Tuple[int, str, str]:
+    """Errors from a user's own key are about their key and account."""
+    name = BYOK_PROVIDER_NAMES.get(target.provider, target.provider)
+    if status_code in (401, 403):
+        return 401, f"Your {name} API key was rejected. Check it in AI settings.", "byok_invalid"
+    if status_code in (402, 429):
+        return (
+            429,
+            f"Your {name} key is rate limited or out of credit. Check your {name} account, then try again.",
+            "byok_exhausted",
+        )
+    if status_code == 404 or (status_code == 400 and "model" in err_msg.lower()):
+        return (
+            400,
+            f"The model \u201c{target.model}\u201d isn't available with your {name} key. Pick another model in AI settings.",
+            "byok_model",
+        )
+    if status_code == 413:
+        return 413, "The resume is too long for the selected model. Try a model with a larger context.", "byok_model"
+    return 502, f"{name} returned an error. Please try again.", "byok_unavailable"
+
+
 def is_free_openrouter_model(model: str) -> bool:
     return model.endswith(":free") or model == "openrouter/free"
 
@@ -65,19 +114,25 @@ class LLMTarget:
     model: str
     timeout_seconds: float
     options: Dict = field(default_factory=dict)
+    # True for a user's own key (BYOK): errors are reported as being about
+    # their key, and paid models are allowed — they pay for them.
+    byok: bool = False
 
     @property
     def label(self) -> str:
-        return f"{self.provider}:{self.model}"
+        return f"{'byok:' if self.byok else ''}{self.provider}:{self.model}"
 
 
 class LLMClient:
     """Client that tries a chain of free LLM targets in order."""
 
-    def __init__(self, targets: List[LLMTarget]) -> None:
+    def __init__(self, targets: List[LLMTarget], offer_byok: bool = False) -> None:
         if not targets:
             raise ValueError("LLMClient needs at least one target")
         self.targets = targets
+        # When every server target fails and no user key was supplied, tag the
+        # error so the frontend can offer to use the user's own key.
+        self.offer_byok = offer_byok
 
     @property
     def model(self) -> str:
@@ -163,6 +218,13 @@ class LLMClient:
                         self.targets[index + 1].label,
                     )
         assert last_error is not None
+        if self.offer_byok and not self.targets[-1].byok and last_error.status_code in BYOK_FALLBACK_STATUSES:
+            raise HTTPException(
+                status_code=last_error.status_code,
+                detail="ResumeForge's free AI capacity is used up right now. "
+                "Add your own API key to keep going.",
+                headers={**(last_error.headers or {}), AI_ERROR_HEADER: "server_exhausted"},
+            )
         raise last_error
 
     async def _call(
@@ -195,17 +257,26 @@ class LLMClient:
             "Authorization": f"Bearer {target.api_key}",
             "Content-Type": "application/json",
         }
-        if target.provider == "groq":
+        if target.provider in ("groq", "openai"):
             payload["max_completion_tokens"] = MAX_COMPLETION_TOKENS
-            if wants_json:
-                payload["response_format"] = {"type": "json_object"}
         else:
+            payload["max_tokens"] = MAX_COMPLETION_TOKENS
+        if wants_json and target.provider in ("groq", "openai", "gemini"):
+            payload["response_format"] = {"type": "json_object"}
+        if target.provider == "openrouter":
             headers["HTTP-Referer"] = "https://resumeforge.dev"
             headers["X-Title"] = "ResumeForge"
 
         try:
             async with httpx.AsyncClient(timeout=target.timeout_seconds) as client:
                 response = await client.post(target.url, headers=headers, json=payload)
+                # Some models reject optional parameters (e.g. reasoning models
+                # only accept the default temperature). Retry once without them.
+                if response.status_code == 400 and _OPTIONAL_PARAM_RE.search(response.text):
+                    for key in ("temperature", "response_format", *target.options.keys()):
+                        payload.pop(key, None)
+                    logger.warning("[LLM] Retrying without optional params | target=%s", target.label)
+                    response = await client.post(target.url, headers=headers, json=payload)
         except httpx.TimeoutException as exc:
             elapsed = time.perf_counter() - stage_start
             logger.error(
@@ -217,6 +288,7 @@ class LLMClient:
             raise HTTPException(
                 status_code=504,
                 detail="The AI request timed out. Please try again or use a shorter resume.",
+                headers={AI_ERROR_HEADER: "byok_unavailable"} if target.byok else None,
             ) from exc
         except httpx.RequestError as exc:
             elapsed = time.perf_counter() - stage_start
@@ -229,6 +301,7 @@ class LLMClient:
             raise HTTPException(
                 status_code=503,
                 detail="Failed to connect to the AI service provider.",
+                headers={AI_ERROR_HEADER: "byok_unavailable"} if target.byok else None,
             ) from exc
 
         elapsed = time.perf_counter() - stage_start
@@ -240,6 +313,9 @@ class LLMClient:
                 err_msg = err_json.get("error", {}).get("message", err_msg)
             except Exception:  # nosec
                 pass
+            # Some providers echo (part of) the key in auth errors; never log it.
+            if target.api_key:
+                err_msg = str(err_msg).replace(target.api_key, "[redacted]")
 
             logger.error(
                 "[LLM] API ERROR | target=%s | status=%d | elapsed=%.2fs | error=%s",
@@ -249,6 +325,9 @@ class LLMClient:
                 err_msg,
             )
 
+            if target.byok:
+                status_code, detail, code = _map_byok_error(target, response.status_code, str(err_msg))
+                raise HTTPException(status_code=status_code, detail=detail, headers={AI_ERROR_HEADER: code})
             status_code, detail = self._map_http_error(response.status_code, err_msg)
             raise HTTPException(status_code=status_code, detail=detail)
 
