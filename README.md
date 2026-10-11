@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&height=200&color=0:f97316,100:dc2626&text=🔥%20ResumeForge&fontColor=ffffff&fontSize=60&fontAlignY=38&animation=fadeIn" alt="ResumeForge" />
+<img src="https://capsule-render.vercel.app/api?type=waving&height=200&color=0:000000,100:00000&text=🔥%20ResumeForge&fontColor=ffffff&fontSize=60&fontAlignY=38&animation=fadeIn" alt="ResumeForge" />
 
 <a href="#-features">
   <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=24&pause=1200&color=F97316&center=true&vCenter=true&width=600&lines=Forge+resumes+that+get+noticed.;ATS-friendly.+Recruiter-ready.;Build+%E2%86%92+Analyze+%E2%86%92+Improve" alt="Forge resumes that get noticed." />
