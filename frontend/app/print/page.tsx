@@ -33,10 +33,12 @@ export default function PrintPage() {
       const name = resume.profile?.fullName || "Resume";
       document.title = `${name.replace(/\s+/g, "-")}-Resume`;
 
-      // Trigger print dialog after a short delay to ensure rendering
-      const timer = setTimeout(() => {
-        window.print();
-      }, 500);
+      // Trigger print dialog once the resume fonts have loaded
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let cancelled = false;
+      document.fonts.ready.then(() => {
+        if (!cancelled) timer = setTimeout(() => window.print(), 300);
+      });
 
       // Handle after print
       const afterPrint = () => {
@@ -46,6 +48,7 @@ export default function PrintPage() {
       window.addEventListener("afterprint", afterPrint);
 
       return () => {
+        cancelled = true;
         clearTimeout(timer);
         window.removeEventListener("afterprint", afterPrint);
       };

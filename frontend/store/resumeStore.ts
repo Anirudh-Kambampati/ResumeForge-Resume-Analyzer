@@ -1,7 +1,8 @@
 "use client";
 
 import { create } from "zustand";
-import { Resume } from "@/types/resume";
+import { Resume, ResumeAppearance } from "@/types/resume";
+import { getAppearance } from "@/lib/resumeAppearance";
 import { mockResume } from "@/mocks/mockResume";
 import { LAYOUTS, getLayoutSections, type LayoutId } from "@/config/layouts";
 
@@ -29,6 +30,8 @@ interface ResumeStore {
   setTemplate: (template: Resume["template"]) => void;
   setLayout: (layout: Resume["layout"]) => void;
   setSectionOrder: (sectionOrder: string[]) => void;
+  /** Merge into the current appearance; null restores the defaults. */
+  setAppearance: (patch: Partial<ResumeAppearance> | null) => void;
 
   resetResume: () => void;
 }
@@ -81,6 +84,21 @@ export const useResumeStore = create<ResumeStore>((set) => ({
         layout: "custom",
       },
     })),
+
+  setAppearance: (patch) =>
+    set((state) => {
+      if (patch === null) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { appearance: _removed, ...rest } = state.resume;
+        return { resume: rest };
+      }
+      return {
+        resume: {
+          ...state.resume,
+          appearance: { ...getAppearance(state.resume), ...patch },
+        },
+      };
+    }),
 
   resetResume: () =>
     set({

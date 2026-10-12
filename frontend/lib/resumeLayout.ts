@@ -217,17 +217,4 @@ export function chunkRows<T>(items: T[], size: number): T[][] {
   return rows;
 }
 
-// ============================================================
-// Color palette — shared across renderers
-// ============================================================
-
-export const COLORS = {
-  textPrimary: "#171717",
-  textSecondary: "#525252",
-  textTertiary: "#737373",
-  textBody: "#404040",
-  textMuted: "#a3a3a3",
-  border: "#262626",
-  borderLight: "#d4d4d4",
-  white: "#ffffff",
-} as const;
+// Text colours live in lib/resumeAppearance.ts (getPalette), since they follow the darkness setting.

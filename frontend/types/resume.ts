@@ -1,3 +1,5 @@
+import type { ResumeFontId } from "@/lib/resumeFonts";
+
 export interface BaseSection {
   id: string;
   enabled: boolean;
@@ -23,6 +25,8 @@ export interface Resume {
   template: ResumeTemplate;
   layout: ResumeLayoutName;
   sectionOrder: string[];
+  /** Fonts and text darkness. Missing on older saves — read via getAppearance(). */
+  appearance?: ResumeAppearance;
 
   // Content
   profile: Profile;
@@ -48,6 +52,14 @@ export interface Resume {
   publications: Publication[];
 
   customSections: CustomSection[];
+}
+
+export interface ResumeAppearance {
+  headingFont: ResumeFontId;
+  subheadingFont: ResumeFontId;
+  bodyFont: ResumeFontId;
+  /** 0–100; 50 is the default palette. */
+  darkness: number;
 }
 
 export interface Profile {

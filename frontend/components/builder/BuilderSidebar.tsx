@@ -6,6 +6,7 @@ import LogoMark from "@/components/ui/LogoMark";
 import { RotateCcw, LayoutDashboard, FileText } from "lucide-react";
 import { useResumeStore, type BuilderSection } from "@/store/resumeStore";
 import TemplateSelector from "./TemplateSelector";
+import AppearancePanel from "./AppearancePanel";
 import { TEMPLATES, type TemplateId } from "@/config/templates";
 
 // @dnd-kit — client-side only to avoid hydration mismatches
@@ -56,6 +57,13 @@ export default function BuilderSidebar({
             Template
           </h3>
           <TemplateSelector />
+        </div>
+
+        {/* ============================
+            Fonts + text darkness
+        ============================ */}
+        <div className="mt-4">
+          <AppearancePanel />
         </div>
 
         {/* ============================

@@ -20,9 +20,10 @@ import {
   getContactIconSize,
   chunkRows,
   getCertificationColumns,
-  COLORS,
   type ResumeLayout,
 } from "@/lib/resumeLayout";
+import { getAppearance, getPalette, type ResumePalette } from "@/lib/resumeAppearance";
+import { RESUME_FONT_LIST, resumeFontFamily } from "@/lib/resumeFonts";
 import { hasSectionData } from "@/config/sections";
 import { getTemplateStyles, type TemplateStyles } from "@/config/templates";
 import {
@@ -31,67 +32,61 @@ import {
   type CompressLevel,
 } from "@/lib/autoFitEngine";
 
-Font.register({
-  family: "Sans",
-  fonts: [
-    { src: "/fonts/inter/Inter-Regular.ttf", fontWeight: 400, fontStyle: "normal" },
-    { src: "/fonts/inter/Inter-Italic.ttf", fontWeight: 400, fontStyle: "italic" },
-    { src: "/fonts/inter/Inter-Medium.ttf", fontWeight: 500, fontStyle: "normal" },
-    { src: "/fonts/inter/Inter-MediumItalic.ttf", fontWeight: 500, fontStyle: "italic" },
-    { src: "/fonts/inter/Inter-SemiBold.ttf", fontWeight: 600, fontStyle: "normal" },
-    { src: "/fonts/inter/Inter-Bold.ttf", fontWeight: 700, fontStyle: "normal" },
-  ],
-});
+// Same files the HTML preview loads via @font-face
+for (const font of RESUME_FONT_LIST) {
+  Font.register({ family: resumeFontFamily(font.id), fonts: font.files });
+}
 
 Font.registerHyphenationCallback((word) => [word]);
 
 const pt = (v: number) => `${v}pt`;
 
-function buildStyles(L: ResumeLayout, T: TemplateStyles) {
+type RoleFonts = { heading: string; subheading: string; body: string };
+
+function buildStyles(L: ResumeLayout, T: TemplateStyles, F: RoleFonts, COLORS: ResumePalette) {
   return StyleSheet.create({
-    page: { padding: L.pagePadding, fontFamily: "Sans", fontSize: L.bodyTextFontSize, lineHeight: L.bodyTextLineHeight, color: COLORS.textPrimary },
+    page: { padding: L.pagePadding, fontFamily: F.body, fontSize: L.bodyTextFontSize, lineHeight: L.bodyTextLineHeight, color: COLORS.textPrimary },
     header: { paddingBottom: L.headerPaddingBottom },
-    name: { fontFamily: "Sans", fontWeight: T.nameFontWeight, fontSize: L.nameFontSize * T.nameSizeMultiplier, lineHeight: L.nameLineHeight, textAlign: "center", color: COLORS.textPrimary, marginBottom: L.nameMarginBottom },
-    titleRow: { fontFamily: "Sans", fontWeight: T.titleFontWeight, fontSize: L.titleFontSize, lineHeight: L.titleLineHeight, letterSpacing: T.titleLetterSpacing, textAlign: "center", color: COLORS.textBody, marginTop: L.titleMarginTop, marginBottom: L.titleMarginBottom },
+    name: { fontFamily: F.heading, fontWeight: T.nameFontWeight, fontSize: L.nameFontSize * T.nameSizeMultiplier, lineHeight: L.nameLineHeight, textAlign: "center", color: COLORS.textPrimary, marginBottom: L.nameMarginBottom },
+    titleRow: { fontFamily: F.subheading, fontWeight: T.titleFontWeight, fontSize: L.titleFontSize, lineHeight: L.titleLineHeight, letterSpacing: T.titleLetterSpacing, textAlign: "center", color: COLORS.textBody, marginTop: L.titleMarginTop, marginBottom: L.titleMarginBottom },
     contactRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center", columnGap: L.contactItemGap, rowGap: L.contactRowGap },
     contactItem: { flexDirection: "row", alignItems: "center", color: COLORS.textBody, textDecoration: "none" },
     contactIcon: { width: getContactIconSize(L), height: getContactIconSize(L), marginRight: L.contactIconGap },
-    contactText: { fontFamily: "Sans", fontWeight: 400, fontSize: L.contactFontSize, lineHeight: L.contactLineHeight, color: COLORS.textBody, textDecoration: "none" },
+    contactText: { fontFamily: F.body, fontWeight: 400, fontSize: L.contactFontSize, lineHeight: L.contactLineHeight, color: COLORS.textBody, textDecoration: "none" },
     section: { marginTop: L.sectionMarginTop },
-    sectionHeading: { fontFamily: "Sans", fontWeight: T.sectionHeaderFontWeight, fontSize: L.sectionHeaderFontSize, letterSpacing: T.sectionHeaderLetterSpacing, textTransform: T.sectionHeaderTransform as "uppercase" },
-    sectionDivider: { borderBottomWidth: T.sectionHeaderBorderWidth, borderBottomColor: "#000000", marginTop: L.sectionHeaderPaddingBottom, marginBottom: L.sectionHeaderMarginBottom },
-    bodyText: { fontFamily: "Sans", fontWeight: 400, fontSize: L.bodyTextFontSize, lineHeight: L.bodyTextLineHeight, color: COLORS.textBody },
+    sectionHeading: { fontFamily: F.heading, color: COLORS.textPrimary, fontWeight: T.sectionHeaderFontWeight, fontSize: L.sectionHeaderFontSize, letterSpacing: T.sectionHeaderLetterSpacing, textTransform: T.sectionHeaderTransform as "uppercase" },
+    sectionDivider: { borderBottomWidth: T.sectionHeaderBorderWidth, borderBottomColor: COLORS.divider, marginTop: L.sectionHeaderPaddingBottom, marginBottom: L.sectionHeaderMarginBottom },
+    bodyText: { fontFamily: F.body, fontWeight: 400, fontSize: L.bodyTextFontSize, lineHeight: L.bodyTextLineHeight, color: COLORS.textBody },
     entry: { marginTop: L.entryGap },
     entryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
     entryLeft: { flexGrow: 1, paddingRight: 8 },
-    entryTitle: { fontFamily: "Sans", fontWeight: T.entryTitleFontWeight, fontSize: L.entrySubtitleFontSize, color: COLORS.textPrimary },
-    entrySubtitle: { fontFamily: "Sans", fontWeight: T.entrySubtitleFontWeight, fontSize: L.entryMetaFontSize, color: COLORS.textSecondary },
-    entryDate: { fontFamily: "Sans", fontWeight: 500, fontSize: L.entryMetaFontSize, color: COLORS.textTertiary, textAlign: "right" },
-    entryMeta: { fontFamily: "Sans", fontWeight: 400, fontSize: L.entryMetaFontSize, color: COLORS.textSecondary },
+    entryTitle: { fontFamily: F.subheading, fontWeight: T.entryTitleFontWeight, fontSize: L.entrySubtitleFontSize, color: COLORS.textPrimary },
+    entrySubtitle: { fontFamily: F.subheading, fontWeight: T.entrySubtitleFontWeight, fontSize: L.entryMetaFontSize, color: COLORS.textSecondary },
+    entryDate: { fontFamily: F.subheading, fontWeight: 500, fontSize: L.entryMetaFontSize, color: COLORS.textTertiary, textAlign: "right" },
+    entryMeta: { fontFamily: F.subheading, fontWeight: 400, fontSize: L.entryMetaFontSize, color: COLORS.textSecondary },
     bulletList: { marginTop: L.bulletListMarginTop },
     bullet: { flexDirection: "row", marginBottom: L.bulletGap },
-    bulletMark: { fontFamily: "Sans", fontWeight: 400, width: L.bulletListPaddingLeft * 0.45, fontSize: L.bulletFontSize, color: COLORS.textMuted },
-    bulletText: { flex: 1, fontFamily: "Sans", fontWeight: 400, fontSize: L.bulletFontSize, lineHeight: L.bulletLineHeight, color: COLORS.textBody },
+    bulletMark: { fontFamily: F.body, fontWeight: 400, width: L.bulletListPaddingLeft * 0.45, fontSize: L.bulletFontSize, color: COLORS.textMuted },
+    bulletText: { flex: 1, fontFamily: F.body, fontWeight: 400, fontSize: L.bulletFontSize, lineHeight: L.bulletLineHeight, color: COLORS.textBody },
     skillsContainer: { marginTop: L.skillsMarginTop },
     skillRow: { marginBottom: L.skillsItemMarginBottom },
-    skillTitle: { fontFamily: "Sans", fontWeight: T.entryTitleFontWeight, fontSize: L.skillsItemFontSize, color: COLORS.textPrimary, marginBottom: 1.5 },
-    skillItems: { fontFamily: "Sans", fontWeight: 400, fontSize: L.skillsItemFontSize, color: COLORS.textBody },
+    skillTitle: { fontFamily: F.body, fontWeight: T.entryTitleFontWeight, fontSize: L.skillsItemFontSize, color: COLORS.textPrimary, marginBottom: 1.5 },
+    skillItems: { fontFamily: F.body, fontWeight: 400, fontSize: L.skillsItemFontSize, color: COLORS.textBody },
     achievementBullet: { flexDirection: "row", marginBottom: L.achievementsItemMarginBottom },
     certRow: { flexDirection: "row", marginBottom: L.certificationsGap * 0.4 },
     certCell: { flexGrow: 1, flexShrink: 1, flexBasis: 0 },
     certCellLeft: { marginRight: L.certificationsColumnGap },
-    certText: { fontFamily: "Sans", fontWeight: 400, fontSize: L.certificationsItemFontSize, lineHeight: L.certificationsItemLineHeight, color: COLORS.textBody },
-    certTitle: { fontFamily: "Sans", fontWeight: T.entryTitleFontWeight, fontSize: L.certificationsItemFontSize, color: COLORS.textPrimary },
+    certText: { fontFamily: F.body, fontWeight: 400, fontSize: L.certificationsItemFontSize, lineHeight: L.certificationsItemLineHeight, color: COLORS.textBody },
+    certTitle: { fontFamily: F.body, fontWeight: T.entryTitleFontWeight, fontSize: L.certificationsItemFontSize, color: COLORS.textPrimary },
     languagesContainer: { marginTop: L.languagesMarginTop, flexDirection: "row", flexWrap: "wrap" },
-    langItem: { fontSize: L.languagesItemFontSize, marginRight: L.languagesGap, marginBottom: L.languagesGap * 0.3 },
-    langName: { fontFamily: "Sans", fontWeight: T.entryTitleFontWeight, color: COLORS.textPrimary },
-    langProficiency: { fontFamily: "Sans", fontWeight: 400, fontStyle: "italic", color: COLORS.textSecondary },
+    langItem: { fontFamily: F.body, color: COLORS.textPrimary, fontSize: L.languagesItemFontSize, marginRight: L.languagesGap, marginBottom: L.languagesGap * 0.3 },
+    langName: { fontFamily: F.body, fontWeight: T.entryTitleFontWeight, color: COLORS.textPrimary },
+    langProficiency: { fontFamily: F.body, fontWeight: 400, fontStyle: "italic", color: COLORS.textSecondary },
   });
 }
 
-const ContactIconPDF = ({ type, styles: stl }: { type: ContactType; styles: ReturnType<typeof buildStyles> }) => {
+const ContactIconPDF = ({ type, color, styles: stl }: { type: ContactType; color: string; styles: ReturnType<typeof buildStyles> }) => {
   const icon = getContactIcon(type);
-  const color = COLORS.textBody;
   return (
     <Svg viewBox={icon.viewBox} style={stl.contactIcon}>
       {icon.paths.map((d, i) =>
@@ -244,7 +239,7 @@ function SectionRenderer({ section, resume, S, L }: { section: string; resume: R
           {active.map((item) => (
             <View key={item.id} style={{ flexDirection: "row", marginBottom: L.skillsItemMarginBottom }}>
               <Text style={S.skillTitle}>{item.title}: </Text>
-              <Text style={{ flex: 1, fontFamily: "Sans", fontWeight: 400, fontSize: L.skillsItemFontSize, color: COLORS.textBody }}>
+              <Text style={[S.skillItems, { flex: 1 }]}>
                 {[...new Set(item.items.filter(Boolean))].join(", ")}
               </Text>
             </View>
@@ -324,7 +319,13 @@ export const ResumePDFDocument = ({ resume }: { resume: Resume }) => {
   const baseL = getResumeLayout(resume);
   const L = applyCompressLevel(baseL, autoFit.level);
   const T = getTemplateStyles(resume.template);
-  const S = buildStyles(L, T);
+  const A = getAppearance(resume);
+  const C = getPalette(A.darkness);
+  const S = buildStyles(L, T, {
+    heading: resumeFontFamily(A.headingFont),
+    subheading: resumeFontFamily(A.subheadingFont),
+    body: resumeFontFamily(A.bodyFont),
+  }, C);
   const profile = resume.profile;
   const atsContact = buildATSContactLine(profile);
   const titleLine = (profile.titles || []).filter(Boolean).join(" | ");
@@ -345,12 +346,12 @@ export const ResumePDFDocument = ({ resume }: { resume: Resume }) => {
               {atsContact.map((entry, idx) =>
                 entry.href ? (
                   <Link key={idx} src={entry.href} style={S.contactItem}>
-                    <ContactIconPDF type={entry.type} styles={S} />
+                    <ContactIconPDF type={entry.type} color={C.textBody} styles={S} />
                     <Text style={S.contactText}>{entry.display}</Text>
                   </Link>
                 ) : (
                   <View key={idx} style={S.contactItem}>
-                    <ContactIconPDF type={entry.type} styles={S} />
+                    <ContactIconPDF type={entry.type} color={C.textBody} styles={S} />
                     <Text style={S.contactText}>{entry.display}</Text>
                   </View>
                 )

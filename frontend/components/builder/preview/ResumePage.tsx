@@ -3,12 +3,14 @@
 import React from "react";
 import { Resume } from "@/types/resume";
 import { BuilderSection } from "@/store/resumeStore";
-import { Inter } from "next/font/google";
 import { buildATSContactLine, type ContactType } from "@/lib/contactLinks";
 import { getContactIcon } from "@/lib/contactIcons";
 import { getProjectLinkInfo } from "@/lib/projectLinks";
 import { formatDateRange, normalizeDate } from "@/lib/dateFormat";
-import { getResumeLayout, getContactIconSize, chunkRows, getCertificationColumns, COLORS } from "@/lib/resumeLayout";
+import { getResumeLayout, getContactIconSize, chunkRows, getCertificationColumns } from "@/lib/resumeLayout";
+import { getAppearance, getPalette } from "@/lib/resumeAppearance";
+import { resumeFontStack } from "@/lib/resumeFonts";
+import ResumeFontFaces from "./ResumeFontFaces";
 import { hasSectionData } from "@/config/sections";
 import { getTemplateStyles } from "@/config/templates";
 import {
@@ -17,16 +19,10 @@ import {
   type CompressLevel,
 } from "@/lib/autoFitEngine";
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
 
 /** Contact-row icon — same path data as the PDF renderer's ContactIconPDF. */
-function ContactIconSvg({ type, sizePt, gapPt }: { type: ContactType; sizePt: number; gapPt: number }) {
+function ContactIconSvg({ type, sizePt, gapPt, color }: { type: ContactType; sizePt: number; gapPt: number; color: string }) {
   const icon = getContactIcon(type);
-  const color = COLORS.textBody;
   return (
     <svg
       viewBox={icon.viewBox}
@@ -70,6 +66,13 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
 
   const T = getTemplateStyles(resume.template);
 
+  // User-chosen fonts per role and text palette (shared with the PDF)
+  const appearance = getAppearance(resume);
+  const C = getPalette(appearance.darkness);
+  const headingFont = resumeFontStack(appearance.headingFont);
+  const subheadingFont = resumeFontStack(appearance.subheadingFont);
+  const bodyFont = resumeFontStack(appearance.bodyFont);
+
   // Get base layout and apply compression
   const baseL = getResumeLayout(resume);
   const L = React.useMemo(
@@ -99,17 +102,17 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
   const sectionHeading = (label: string) => {
     const textTransform = T.sectionHeaderTransform === "uppercase" ? "uppercase" : "none";
     const hasBorder = T.sectionHeaderBorderWidth > 0;
-    const borderColor = "#000000";
     return (
       <h2
-        className="text-neutral-900"
         style={{
+          fontFamily: headingFont,
+          color: C.textPrimary,
           fontSize: pt(L.sectionHeaderFontSize),
           fontWeight: T.sectionHeaderFontWeight,
           letterSpacing: T.sectionHeaderLetterSpacing,
           borderBottomWidth: hasBorder ? T.sectionHeaderBorderWidth : 0,
           borderBottomStyle: hasBorder ? "solid" : "none",
-          borderBottomColor: borderColor,
+          borderBottomColor: C.divider,
           paddingBottom: hasBorder ? pt(L.sectionHeaderPaddingBottom) : 0,
           marginBottom: pt(L.sectionHeaderMarginBottom),
           marginTop: "0px",
@@ -136,7 +139,7 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
               display: "inline-block",
               width: pt(L.bulletListPaddingLeft * 0.45),
               fontSize: pt(L.bulletFontSize),
-              color: "#a3a3a3",
+              color: C.textMuted,
             }}
           >
             {"\u2022"}
@@ -146,7 +149,7 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
               flex: 1,
               fontSize: pt(L.bulletFontSize),
               lineHeight: String(L.bulletLineHeight),
-              color: "#404040",
+              color: C.textBody,
               ...balanceWrap,
             }}
           >
@@ -196,22 +199,23 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
               {/* Title + Date */}
               <div
                 className="flex justify-between items-baseline"
-                style={{ fontSize: pt(L.entrySubtitleFontSize) }}
+                style={{ fontFamily: subheadingFont, fontSize: pt(L.entrySubtitleFontSize) }}
               >
-                <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                <span style={{ fontWeight: T.entryTitleFontWeight, color: C.textPrimary }}>
                   {item.role}
                 </span>
                 <span
-                  className="text-neutral-500 font-medium text-right whitespace-nowrap"
-                  style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px" }}
+                  className="font-medium text-right whitespace-nowrap"
+                  style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px", color: C.textTertiary }}
                 >
                   {formatDateRange(item.startDate, item.endDate, item.currentlyWorking)}
                 </span>
               </div>
               {/* Company + Location */}
               <div
-                className="text-neutral-600"
                 style={{
+                  fontFamily: subheadingFont,
+                  color: C.textSecondary,
                   fontWeight: T.entrySubtitleFontWeight,
                   fontSize: pt(L.entryMetaFontSize),
                 }}
@@ -247,22 +251,23 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
                 {/* Degree + Date */}
                 <div
                   className="flex justify-between items-baseline"
-                  style={{ fontSize: pt(L.entrySubtitleFontSize) }}
+                  style={{ fontFamily: subheadingFont, fontSize: pt(L.entrySubtitleFontSize) }}
                 >
-                  <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                  <span style={{ fontWeight: T.entryTitleFontWeight, color: C.textPrimary }}>
                     {degreeStr}
                   </span>
                   <span
-                    className="text-neutral-500 font-medium text-right whitespace-nowrap"
-                    style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px" }}
+                    className="font-medium text-right whitespace-nowrap"
+                    style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px", color: C.textTertiary }}
                   >
                     {formatDateRange(item.startDate, item.endDate)}
                   </span>
                 </div>
                 {/* Institution + GPA */}
                 <div
-                  className="text-neutral-600"
                   style={{
+                    fontFamily: subheadingFont,
+                    color: C.textSecondary,
                     fontWeight: T.entrySubtitleFontWeight,
                     fontSize: pt(L.entryMetaFontSize),
                 }}
@@ -290,15 +295,14 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
                 style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}
               >
                 {/* Project Name | Technologies + Link */}
-                <div className="flex justify-between items-baseline" style={{ fontSize: pt(L.entrySubtitleFontSize) }}>
+                <div className="flex justify-between items-baseline" style={{ fontFamily: subheadingFont, fontSize: pt(L.entrySubtitleFontSize) }}>
                   <span>
-                    <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                    <span style={{ fontWeight: T.entryTitleFontWeight, color: C.textPrimary }}>
                       {item.title}
                     </span>
                     {item.technologies && item.technologies.length > 0 && (
                       <span
-                        className="text-neutral-600"
-                        style={{ fontWeight: 400, fontSize: pt(L.entryMetaFontSize) }}
+                        style={{ color: C.textSecondary, fontWeight: 400, fontSize: pt(L.entryMetaFontSize) }}
                       >
                         {" | "}{item.technologies.join(", ")}
                       </span>
@@ -309,8 +313,7 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
                       href={linkInfo.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-neutral-500 hover:text-neutral-800 transition-colors"
-                      style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "6px", textDecoration: "none" }}
+                      style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "6px", textDecoration: "none", color: C.textTertiary }}
                     >
                       {linkInfo.label}
                     </a>
@@ -339,15 +342,14 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
               style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}
             >
               {/* Title + Date */}
-              <div className="flex justify-between items-baseline" style={{ fontSize: pt(L.entrySubtitleFontSize) }}>
+              <div className="flex justify-between items-baseline" style={{ fontFamily: subheadingFont, fontSize: pt(L.entrySubtitleFontSize) }}>
                 <div>
-                  <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                  <span style={{ fontWeight: T.entryTitleFontWeight, color: C.textPrimary }}>
                     {item.title}
                   </span>
                   {item.institution && (
                     <div
-                      className="text-neutral-600"
-                      style={{ fontWeight: T.entrySubtitleFontWeight, fontSize: pt(L.entryMetaFontSize) }}
+                      style={{ color: C.textSecondary, fontWeight: T.entrySubtitleFontWeight, fontSize: pt(L.entryMetaFontSize) }}
                     >
                       {item.institution}
                       {item.advisor ? ` \u2014 Advisor: ${item.advisor}` : ""}
@@ -355,8 +357,8 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
                   )}
                 </div>
                 <span
-                  className="text-neutral-500 font-medium text-right whitespace-nowrap"
-                  style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px" }}
+                  className="font-medium text-right whitespace-nowrap"
+                  style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px", color: C.textTertiary }}
                 >
                   {normalizeDate(item.duration)}
                 </span>
@@ -382,22 +384,20 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
               key={item.id}
               style={{ marginTop: idx > 0 ? pt(L.entryGap) : "0px" }}
             >
-              <div className="flex justify-between" style={{ fontSize: pt(L.entrySubtitleFontSize) }}>
+              <div className="flex justify-between" style={{ fontFamily: subheadingFont, fontSize: pt(L.entrySubtitleFontSize) }}>
                 <div>
-                  <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                  <span style={{ fontWeight: T.entryTitleFontWeight, color: C.textPrimary }}>
                     {item.title}
                   </span>
                   {item.authors && (
                     <div
-                      className="text-neutral-600"
-                      style={{ fontWeight: T.entrySubtitleFontWeight, fontSize: pt(L.entryMetaFontSize) }}
+                      style={{ color: C.textSecondary, fontWeight: T.entrySubtitleFontWeight, fontSize: pt(L.entryMetaFontSize) }}
                     >
                       {item.authors}
                     </div>
                   )}
                   <div
-                    className="text-neutral-600"
-                    style={{ fontWeight: 400, fontSize: pt(L.entryMetaFontSize) }}
+                    style={{ color: C.textSecondary, fontWeight: 400, fontSize: pt(L.entryMetaFontSize) }}
                   >
                     {item.venue}
                     {item.doi ? ` \u2014 ${item.doi}` : ""}
@@ -405,8 +405,8 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
                 </div>
                 {item.date && (
                   <span
-                    className="text-neutral-500 font-medium text-right whitespace-nowrap"
-                    style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px" }}
+                    className="font-medium text-right whitespace-nowrap"
+                    style={{ fontSize: pt(L.entryMetaFontSize), marginLeft: "8px", color: C.textTertiary }}
                   >
                     {normalizeDate(item.date)}
                   </span>
@@ -414,8 +414,9 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
               </div>
               {item.description && (
                 <div
-                  className="text-neutral-700"
                   style={{
+                    fontFamily: bodyFont,
+                    color: C.textBody,
                     fontSize: pt(L.bodyTextFontSize),
                     lineHeight: String(L.bodyTextLineHeight),
                     marginTop: pt(L.bodyTextMarginTop),
@@ -443,17 +444,16 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
             {active.map((item) => (
               <div
                 key={item.id}
-                className="font-sans"
                 style={{
                   fontSize: pt(L.skillsItemFontSize),
                   lineHeight: String(L.skillsItemLineHeight),
                   marginBottom: pt(L.skillsItemMarginBottom),
                 }}
               >
-                <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                <span style={{ fontWeight: T.entryTitleFontWeight, color: C.textPrimary }}>
                   {item.title}:
                 </span>{" "}
-                <span className="text-neutral-700">
+                <span style={{ color: C.textBody }}>
                   {[...new Set(item.items.filter(Boolean))].join(", ")}
                 </span>
               </div>
@@ -485,7 +485,7 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
                   display: "inline-block",
                   width: pt(L.bulletListPaddingLeft * 0.45),
                   fontSize: pt(L.bulletFontSize),
-                  color: "#a3a3a3",
+                  color: C.textMuted,
                 }}
               >
                 {"\u2022"}
@@ -495,7 +495,7 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
                   flex: 1,
                   fontSize: pt(L.bulletFontSize),
                   lineHeight: String(L.bulletLineHeight),
-                  color: "#404040",
+                  color: C.textBody,
                   ...balanceWrap,
                 }}
               >
@@ -531,12 +531,12 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
                       marginRight: col < getCertificationColumns(items.length) - 1 ? pt(L.certificationsColumnGap) : 0,
                       fontSize: pt(L.certificationsItemFontSize),
                       lineHeight: String(L.certificationsItemLineHeight),
-                      color: COLORS.textBody,
+                      color: C.textBody,
                     }}
                   >
                     {item && (
                       <>
-                        <span style={{ fontWeight: T.entryTitleFontWeight, color: COLORS.textPrimary }}>
+                        <span style={{ fontWeight: T.entryTitleFontWeight, color: C.textPrimary }}>
                           {item.title}
                         </span>
                         {item.issuer ? ` \u2014 ${item.issuer}` : ""}
@@ -574,13 +574,13 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
                 }}
               >
                 {lang.name && (
-                  <span style={{ fontWeight: T.entryTitleFontWeight, color: "#171717" }}>
+                  <span style={{ fontWeight: T.entryTitleFontWeight, color: C.textPrimary }}>
                     {lang.name}
                   </span>
                 )}
                 {lang.name && lang.proficiency ? ": " : null}
                 {lang.proficiency && (
-                  <span className="italic text-neutral-600">{lang.proficiency}</span>
+                  <span className="italic" style={{ color: C.textSecondary }}>{lang.proficiency}</span>
                 )}
               </div>
             ))}
@@ -605,10 +605,11 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
       className={`
         w-[794px] min-h-[1123px] bg-paper text-ink
         shadow-2xl print:shadow-none print:w-full print:max-w-full print:min-h-0 print:bg-paper print:text-ink
-        ${inter.className}
       `}
-      style={{ padding: pt(L.pagePadding) }}
+      style={{ padding: pt(L.pagePadding), fontFamily: bodyFont }}
     >
+      <ResumeFontFaces />
+
       {/* HEADER */}
       {/* flex-col so header margins add up like react-pdf's instead of collapsing */}
       <header
@@ -619,9 +620,10 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
         <h1
           style={{
             fontSize: pt(L.nameFontSize * T.nameSizeMultiplier),
+            fontFamily: headingFont,
             fontWeight: T.nameFontWeight,
             lineHeight: String(L.nameLineHeight),
-            color: COLORS.textPrimary,
+            color: C.textPrimary,
             marginBottom: pt(L.nameMarginBottom),
           }}
         >
@@ -632,10 +634,11 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
           <p
             style={{
               fontSize: pt(L.titleFontSize),
+              fontFamily: subheadingFont,
               fontWeight: T.titleFontWeight,
               lineHeight: String(L.titleLineHeight),
               letterSpacing: pt(T.titleLetterSpacing),
-              color: COLORS.textBody,
+              color: C.textBody,
               marginTop: pt(L.titleMarginTop),
               marginBottom: pt(L.titleMarginBottom),
             }}
@@ -650,7 +653,7 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
             style={{
               fontSize: pt(L.contactFontSize),
               lineHeight: String(L.contactLineHeight),
-              color: COLORS.textBody,
+              color: C.textBody,
               columnGap: pt(L.contactItemGap),
               rowGap: pt(L.contactRowGap),
               marginTop: titleLine ? 0 : pt(L.titleMarginTop),
@@ -659,7 +662,7 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
             {atsContact.map((entry, idx) => {
               const content = (
                 <>
-                  <ContactIconSvg type={entry.type} sizePt={getContactIconSize(L)} gapPt={L.contactIconGap} />
+                  <ContactIconSvg type={entry.type} sizePt={getContactIconSize(L)} gapPt={L.contactIconGap} color={C.textBody} />
                   <span>{entry.display}</span>
                 </>
               );
@@ -670,7 +673,7 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center"
-                  style={{ textDecoration: "none", color: COLORS.textBody }}
+                  style={{ textDecoration: "none", color: C.textBody }}
                 >
                   {content}
                 </a>
@@ -689,8 +692,8 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
         <section className={highlight("Profile")} style={{ marginTop: pt(L.sectionMarginTop) }}>
           {sectionHeading("Summary")}
           <p
-            className="text-neutral-700"
             style={{
+              color: C.textBody,
               fontSize: pt(L.bodyTextFontSize),
               lineHeight: String(L.bodyTextLineHeight),
               ...balanceWrap,
@@ -702,7 +705,7 @@ export default function ResumePage({ resume, selectedSection, compressLevel }: P
       )}
 
       {/* SECTIONS */}
-      <div className="text-neutral-800">
+      <div style={{ color: C.textPrimary }}>
         {sectionsToRender.map((section) => (
           <div key={section}>{renderSection(section)}</div>
         ))}
