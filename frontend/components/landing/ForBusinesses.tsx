@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import CandidateStack from "./CandidateStack";
 
 const points = [
   {
@@ -14,13 +15,6 @@ const points = [
     title: "Your AI, your key",
     description: "On-demand summaries and interview questions for your shortlist, on your own OpenAI, Anthropic, Gemini, Groq or OpenRouter key.",
   },
-];
-
-// Decorative: a few index cards from a sorted stack (made-up sample data)
-const stack = [
-  { rank: 1, name: "A. Rivera", score: 91, tilt: "-rotate-[1.5deg]", low: false },
-  { rank: 2, name: "J. Chen", score: 84, tilt: "rotate-[0.8deg]", low: false },
-  { rank: 3, name: "M. Novak", score: 58, tilt: "-rotate-[0.4deg]", low: true },
 ];
 
 export default function ForBusinesses() {
@@ -69,22 +63,7 @@ export default function ForBusinesses() {
           </div>
         </div>
 
-        <ol aria-hidden="true" className="flex min-w-0 flex-[1_1_340px] flex-col gap-3 p-2">
-          {stack.map((card) => (
-            <li
-              key={card.rank}
-              className={`flex items-center gap-4 rounded-xl bg-panel px-5 py-4 text-white ${card.tilt}`}
-            >
-              <span className="w-6 font-serif text-3xl">{card.rank}</span>
-              <span className="flex-1 font-bold">{card.name}</span>
-              <span
-                className={`rf-score h-12 w-12 text-2xl shadow-none ${card.low ? "rf-score--low -rotate-6" : "rf-score--good rotate-3"}`}
-              >
-                {card.score}
-              </span>
-            </li>
-          ))}
-        </ol>
+        <CandidateStack />
       </div>
     </section>
   );
